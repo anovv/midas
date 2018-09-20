@@ -10,6 +10,7 @@ import (
 	"strings"
 	"log"
 	"sync"
+	"midas/logging"
 )
 
 type Triangle struct {
@@ -118,7 +119,7 @@ func runReportArb() {
 				// we consider arb opportunity is gone
 				if time.Since(arbState.LastUpdateTs) > ARB_REPORT_UPDATE_THRESHOLD_MICROS * time.Microsecond {
 					arbState.Reported = true
-					log.Println("Found arb opportunity: " +
+					logging.LogLineToFile("Found arb opportunity: " +
 						arbState.Triangle.CoinA.CoinSymbol + "->" +
 							arbState.Triangle.CoinB.CoinSymbol + "->" +
 								arbState.Triangle.CoinC.CoinSymbol + "->" +

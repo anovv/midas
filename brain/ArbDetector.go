@@ -88,6 +88,7 @@ func initArbDetector() {
 	delta := time.Since(tStart)
 	printTriangleForSymbols()
 	log.Println("Initializing finished in " + delta.String())
+	logging.LogLineToFile("Launched at " + time.Now().String())
 }
 
 func runTickerUpdates() {

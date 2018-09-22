@@ -11,6 +11,7 @@ import (
 	"log"
 	"sync"
 	"midas/logging"
+	"midas/configuration"
 )
 
 type Triangle struct {
@@ -33,11 +34,6 @@ type ArbState struct {
 	Reported bool
 }
 
-const (
-	TICKERS_UPDATE_PERIOD_MICROS = 0.25*1000*1000
-	ARB_REPORT_UPDATE_THRESHOLD_MICROS = 4*1000*1000
-)
-
 var api = binance.New(http.DefaultClient, "", "")
 var triangles = make(map[string]*Triangle)
 var pairs = make(map[string]*CoinPair)
@@ -48,6 +44,8 @@ var tickers = make(map[string]*Ticker)
 // TODO use syncMap?
 var arbStates = make(map[string]*ArbState)
 var arbStatesMutex = &sync.RWMutex{}
+
+var brainConfig = configuration.ReadBrainConfig()
 
 func RunArbDetector() {
 	initArbDetector()
@@ -100,7 +98,7 @@ func runTickerUpdates() {
 				log.Println("Failed to fetch tickers")
 			}
 			//log.Println("Updated " + strconv.Itoa(len(tickers)) + " tickers")
-			time.Sleep(time.Duration(TICKERS_UPDATE_PERIOD_MICROS) * time.Microsecond)
+			time.Sleep(time.Duration(brainConfig.TICKERS_UPDATE_PERIOD_MICROS) * time.Microsecond)
 		}
 	}()
 }
@@ -118,7 +116,7 @@ func runReportArb() {
 
 				// If arb state was not updated by detector routine for more than ARB_REPORT_UPDATE_THRESHOLD_MICROS
 				// we consider arb opportunity is gone
-				if time.Since(arbState.LastUpdateTs) > ARB_REPORT_UPDATE_THRESHOLD_MICROS * time.Microsecond {
+				if time.Since(arbState.LastUpdateTs) > time.Duration(brainConfig.ARB_REPORT_UPDATE_THRESHOLD_MICROS) * time.Microsecond {
 					arbState.Reported = true
 					logging.LogLineToFile("Found arb opportunity: " +
 						arbState.Triangle.CoinA.CoinSymbol + "->" +

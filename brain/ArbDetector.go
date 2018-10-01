@@ -140,18 +140,17 @@ func runDetectArbBLOCKING() {
 	log.Println("Looking for arb opportunities...")
 	for {
 		for _, triangle := range triangles {
-			if tickers[triangle.PairAB.PairSymbol] == nil ||
-				tickers[triangle.PairBC.PairSymbol] == nil ||
-				tickers[triangle.PairAC.PairSymbol] == nil {
-					continue
-			}
 			qtyA := 1.0
 			// A->B
-			qtyB := simTrade(qtyA, triangle.PairAB.PairSymbol, triangle.CoinA.CoinSymbol)
+			sucB, qtyB := simTrade(qtyA, triangle.PairAB.PairSymbol, triangle.CoinA.CoinSymbol)
 			// B->C
-			qtyC := simTrade(qtyB, triangle.PairBC.PairSymbol, triangle.CoinB.CoinSymbol)
+			sucC, qtyC := simTrade(qtyB, triangle.PairBC.PairSymbol, triangle.CoinB.CoinSymbol)
 			// C->A
-			newQtyA := simTrade(qtyC, triangle.PairAC.PairSymbol, triangle.CoinC.CoinSymbol)
+			sucA, newQtyA := simTrade(qtyC, triangle.PairAC.PairSymbol, triangle.CoinC.CoinSymbol)
+
+			if !sucA || !sucB || !sucC {
+				continue
+			}
 
 			profit := (newQtyA - qtyA)/qtyA
 
@@ -190,7 +189,7 @@ func runDetectArbBLOCKING() {
 
 // given rate B/A with bid price (or A/B with ask price),
 // trades qtyA of A for B and returns qtyB
-func simTrade(qtyA float64, pairSymbol string, coinASymbol string) float64 {
+func simTrade(qtyA float64, pairSymbol string, coinASymbol string) (bool, float64) {
 	buyA := false
 	if strings.HasSuffix(pairSymbol, coinASymbol) {
 		buyA = true
@@ -201,10 +200,16 @@ func simTrade(qtyA float64, pairSymbol string, coinASymbol string) float64 {
 		fee = 0.0005
 	}
 
+	ticker := tickers[pairSymbol]
+
+	if ticker == nil {
+		return false, 0
+	}
+
 	if buyA {
-		return (qtyA * tickers[pairSymbol].BidPrice) * (1.0 - fee)
+		return true, (qtyA * ticker.BidPrice) * (1.0 - fee)
 	} else {
-		return (qtyA / tickers[pairSymbol].AskPrice) * (1.0 - fee)
+		return true, (qtyA / ticker.AskPrice) * (1.0 - fee)
 	}
 }
 

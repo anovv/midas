@@ -48,10 +48,11 @@ var arbStatesMutex = &sync.RWMutex{}
 var brainConfig = configuration.ReadBrainConfig()
 
 func RunArbDetector() {
-	initArbDetector()
-	runTickerUpdates()
-	runReportArb()
-	runDetectArbBLOCKING()
+	//initArbDetector()
+	//runTickerUpdates()
+	//runReportArb()
+	//runDetectArbBLOCKING()
+	logging.CreateTeableIfNotExists()
 	//time.Sleep(time.Duration(25000000*1000*1000) * time.Microsecond)
 }
 

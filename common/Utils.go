@@ -52,6 +52,19 @@ func ContainsInt(a int, list []int) bool {
 	return false
 }
 
+func ContainsStrPtr(s string, list []*string) bool {
+	if list == nil {
+		return false
+	}
+	for _, str := range list {
+		if s == *str {
+			return true
+		}
+	}
+
+	return false
+}
+
 func GetKeys(m map[interface{}]interface{}) []interface{} {
 	keys := make([]interface{}, 0, len(m))
 	for k := range m {

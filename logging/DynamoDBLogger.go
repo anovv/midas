@@ -128,3 +128,7 @@ func CreateTeableIfNotExists() {
 
 	log.Println("Created table " + ARB_OPPS_TABLE_NAME)
 }
+
+func RecordArbState() {
+
+}

@@ -2,7 +2,8 @@ package brain
 
 import (
 	"midas/apis/binance"
-	. "midas/common"
+	"midas/common"
+	"midas/common/arb"
 	"net/http"
 	"sort"
 	"strconv"
@@ -14,35 +15,15 @@ import (
 	"midas/configuration"
 )
 
-type Triangle struct {
-	PairAB *CoinPair
-	PairBC *CoinPair
-	PairAC *CoinPair
-	CoinA Coin
-	CoinB Coin
-	CoinC Coin
-	Key string
-}
-
-type ArbState struct {
-	QtyBefore float64
-	QtyAfter float64
-	ProfitRelative float64
-	Triangle *Triangle
-	StartTs time.Time
-	LastUpdateTs time.Time
-	Reported bool
-}
-
 var api = binance.New(http.DefaultClient, "", "")
-var triangles = make(map[string]*Triangle)
-var pairs = make(map[string]*CoinPair)
+var triangles = make(map[string]*arb.Triangle)
+var pairs = make(map[string]*common.CoinPair)
 
 // No need for mutex as we simply update this variable with a new map instance on each write
-var tickers = make(map[string]*Ticker)
+var tickers = make(map[string]*common.Ticker)
 
 // TODO use syncMap?
-var arbStates = make(map[string]*ArbState)
+var arbStates = make(map[string]*arb.State)
 var arbStatesMutex = &sync.RWMutex{}
 
 var brainConfig = configuration.ReadBrainConfig()
@@ -124,9 +105,9 @@ func runReportArb() {
 							arbState.Triangle.CoinB.CoinSymbol + "->" +
 								arbState.Triangle.CoinC.CoinSymbol + "->" +
 									arbState.Triangle.CoinA.CoinSymbol +
-										" Before: " + FloatToString(arbState.QtyBefore) + arbState.Triangle.CoinA.CoinSymbol +
-											" After: " + FloatToString(arbState.QtyAfter) + arbState.Triangle.CoinA.CoinSymbol +
-												" Relative Profit: " + FloatToString(arbState.ProfitRelative * 100.0) + "%" +
+										" Before: " + common.FloatToString(arbState.QtyBefore) + arbState.Triangle.CoinA.CoinSymbol +
+											" After: " + common.FloatToString(arbState.QtyAfter) + arbState.Triangle.CoinA.CoinSymbol +
+												" Relative Profit: " + common.FloatToString(arbState.ProfitRelative * 100.0) + "%" +
 													" Lasted for " + arbState.LastUpdateTs.Sub(arbState.StartTs).String() +
 														" Started at " + arbState.StartTs.String())
 				}
@@ -164,12 +145,12 @@ func runDetectArbBLOCKING() {
 				//					" Before: " + FloatToString(qtyA) + triangle.CoinA.CoinSymbol +
 				//						" After: " + FloatToString(newQtyA) + triangle.CoinA.CoinSymbol +
 				//							" Profit: " + FloatToString(profit))
-				arbStateKey := triangle.Key + "_" + FloatToString(profit)
+				arbStateKey := triangle.Key + "_" + common.FloatToString(profit)
 
 				if arbStates[arbStateKey] == nil {
 					now := time.Now()
 					arbStatesMutex.RLock()
-					arbStates[arbStateKey] = &ArbState{
+					arbStates[arbStateKey] = &arb.State{
 						QtyBefore: qtyA,
 						QtyAfter: newQtyA,
 						ProfitRelative: profit,
@@ -214,7 +195,7 @@ func simTrade(qtyA float64, pairSymbol string, coinASymbol string) (bool, float6
 	}
 }
 
-func isTriangle(pairA, pairB, pairC *CoinPair) bool {
+func isTriangle(pairA, pairB, pairC *common.CoinPair) bool {
 	// make sure number of coin symbols is 3 and all symbols are different
 	return strings.Compare(pairA.PairSymbol, pairB.PairSymbol) != 0 &&
 		strings.Compare(pairA.PairSymbol, pairC.PairSymbol) != 0 &&
@@ -222,7 +203,7 @@ func isTriangle(pairA, pairB, pairC *CoinPair) bool {
 		len(getCoinSymbols(pairA, pairB, pairC)) == 3
 }
 
-func makeTriangle(pairA, pairB, pairC *CoinPair) (string, *Triangle) {
+func makeTriangle(pairA, pairB, pairC *common.CoinPair) (string, *arb.Triangle) {
 	// only works if isTriangle == true
 	coinSymbols := getCoinSymbols(pairA, pairB, pairC)
 	var keys []string
@@ -242,7 +223,7 @@ func makeTriangle(pairA, pairB, pairC *CoinPair) (string, *Triangle) {
 		coinC = pairB.CoinB
 	}
 
-	triangle := &Triangle{
+	triangle := &arb.Triangle{
 		PairAB: findPairForCoins(coinA, coinB, pairA, pairB, pairC),
 		PairBC: findPairForCoins(coinB, coinC, pairA, pairB, pairC),
 		PairAC: findPairForCoins(coinA, coinC, pairA, pairB, pairC),
@@ -255,7 +236,7 @@ func makeTriangle(pairA, pairB, pairC *CoinPair) (string, *Triangle) {
 	return triangleKey, triangle
 }
 
-func getCoinSymbols(pairs ...*CoinPair) map[string]bool {
+func getCoinSymbols(pairs ...*common.CoinPair) map[string]bool {
 	coinSymbols := make(map[string]bool)
 	for _, pair := range pairs {
 		coinSymbols[pair.CoinA.CoinSymbol] = true
@@ -265,7 +246,7 @@ func getCoinSymbols(pairs ...*CoinPair) map[string]bool {
 	return coinSymbols
 }
 
-func findPairForCoins(coinA Coin, coinB Coin, pairs ...*CoinPair) *CoinPair {
+func findPairForCoins(coinA common.Coin, coinB common.Coin, pairs ...*common.CoinPair) *common.CoinPair {
 	for _, pair := range pairs {
 		if strings.Compare(pair.PairSymbol, coinA.CoinSymbol + coinB.CoinSymbol) == 0 ||
 			strings.Compare(pair.PairSymbol, coinB.CoinSymbol + coinA.CoinSymbol) == 0 {

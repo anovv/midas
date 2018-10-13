@@ -7,6 +7,7 @@ import (
 	"os"
 	"midas/common"
 	"log"
+	"sync"
 )
 
 // Asia Pacific (Tokyo)
@@ -34,14 +35,22 @@ const (
 const READ_CAPACITY = 10
 const WRITE_CAPACITY = 10
 
+var dbClient *dynamodb.DynamoDB
+var once sync.Once
+
+// Getting db client as a thread-safe singleton
+func getDBClient() *dynamodb.DynamoDB {
+	once.Do(func() {
+		session, _ := session.NewSession(&aws.Config{
+			Region: aws.String(AWS_REGION)},
+		)
+		dbClient = dynamodb.New(session)
+	})
+	return dbClient
+}
+
 func CreateTeableIfNotExists() {
-	session, _ := session.NewSession(&aws.Config{
-		Region: aws.String(AWS_REGION)},
-	)
-
-	svc := dynamodb.New(session)
-
-	listTablesOutput, _ := svc.ListTables(&dynamodb.ListTablesInput{})
+	listTablesOutput, _ := getDBClient().ListTables(&dynamodb.ListTablesInput{})
 
 	if common.ContainsStrPtr(ARB_OPPS_TABLE_NAME, listTablesOutput.TableNames) {
 		log.Println("Table " + ARB_OPPS_TABLE_NAME + " exists")
@@ -118,7 +127,7 @@ func CreateTeableIfNotExists() {
 		TableName: aws.String(ARB_OPPS_TABLE_NAME),
 	}
 
-	_, err := svc.CreateTable(input)
+	_, err := getDBClient().CreateTable(input)
 
 	if err != nil {
 		log.Println("Got error creating " + ARB_OPPS_TABLE_NAME)
@@ -127,8 +136,4 @@ func CreateTeableIfNotExists() {
 	}
 
 	log.Println("Created table " + ARB_OPPS_TABLE_NAME)
-}
-
-func RecordArbState() {
-
 }

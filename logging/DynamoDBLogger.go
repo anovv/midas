@@ -21,7 +21,7 @@ const (
 	ATTR_NAME_QTY_BEFORE = "qty_before"
 	ATTR_NAME_QTY_AFTER = "qty_after"
 	ATTR_NAME_RELATIVE_PROFIT = "relative_profit"
-	ATTR_NAME_LASTED_FOR = "lasted_for"
+	ATTR_NAME_LASTED_FOR_MS = "lasted_for"
 	ATTR_NAME_STARTED_AT = "started_at"
 	ATTR_NAME_FINISHED_AT = "finished_at"
 )
@@ -63,7 +63,7 @@ func CreateTeableIfNotExists() {
 				AttributeType: aws.String("N"),
 			},
 			{
-				AttributeName: aws.String(ATTR_NAME_LASTED_FOR),
+				AttributeName: aws.String(ATTR_NAME_LASTED_FOR_MS),
 				AttributeType: aws.String("N"),
 			},
 		},
@@ -106,7 +106,7 @@ func CreateTeableIfNotExists() {
 						KeyType:       aws.String("HASH"),
 					},
 					{
-						AttributeName: aws.String(ATTR_NAME_LASTED_FOR),
+						AttributeName: aws.String(ATTR_NAME_LASTED_FOR_MS),
 						KeyType:       aws.String("RANGE"),
 					},
 				},

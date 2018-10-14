@@ -1,8 +1,7 @@
 package main
 
 import (
-	// TODO learn about imports
-	. "midas/brain"
+	"midas/brain"
 )
 
 func main() {
@@ -10,5 +9,5 @@ func main() {
 	//SetupRequestReceiver()
 	//CleanupEyesHandler()
 	//InitCoinGraph()
-	RunArbDetector()
+	brain.RunArbDetector()
 }

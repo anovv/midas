@@ -29,16 +29,59 @@ var arbStatesMutex = &sync.RWMutex{}
 var brainConfig = configuration.ReadBrainConfig()
 
 func RunArbDetector() {
-	//initArbDetector()
-	//runTickerUpdates()
-	//runReportArb()
-	//runDetectArbBLOCKING()
-	logging.CreateTeableIfNotExists()
+	initArbDetector()
+	runTickerUpdates()
+	runReportArb()
+	runDetectArbBLOCKING()
+	//timeStart := time.Now()
+	//coinA := common.Coin{
+	//	"BTC",
+	//}
+	//coinB := common.Coin{
+	//	"ETH",
+	//}
+	//coinC := common.Coin{
+	//	"BNB",
+	//}
+	//triangle := &arb.Triangle{
+	//	PairAB: &common.CoinPair{
+	//		PairSymbol: "BTCETH",
+	//		CoinA: coinA,
+	//		CoinB: coinB,
+	//	},
+	//	PairBC: &common.CoinPair{
+	//		PairSymbol: "ETHBNB",
+	//		CoinA: coinB,
+	//		CoinB: coinC,
+	//	},
+	//	PairAC: &common.CoinPair{
+	//		PairSymbol: "BTCBNB",
+	//		CoinA: coinA,
+	//		CoinB: coinC,
+	//	},
+	//	CoinA: coinA,
+	//	CoinB: coinB,
+	//	CoinC: coinC,
+	//	Key: "test_key",
+	//
+	//}
+	//timeEnd := time.Now()
+	//arbState := &arb.State{
+	//	QtyBefore: 1.66565656,
+	//	QtyAfter: 1.6767676887,
+	//	ProfitRelative: 0.0013435,
+	//	Triangle: triangle,
+	//	StartTs: timeStart,
+	//	LastUpdateTs: timeEnd,
+	//	Reported: true,
+	//}
+	//logging.RecordArbState(arbState)
 	//time.Sleep(time.Duration(25000000*1000*1000) * time.Microsecond)
 }
 
 func initArbDetector() {
 	log.Println("Initializing arb detector...")
+	logging.CreateTableIfNotExists()
 	_pairs, err := api.GetAllPairs()
 	if err != nil {
 		panic("Can't fetch list of pairs")
@@ -99,17 +142,8 @@ func runReportArb() {
 				// If arb state was not updated by detector routine for more than ARB_REPORT_UPDATE_THRESHOLD_MICROS
 				// we consider arb opportunity is gone
 				if time.Since(arbState.LastUpdateTs) > time.Duration(brainConfig.ARB_REPORT_UPDATE_THRESHOLD_MICROS) * time.Microsecond {
+					logging.RecordArbState(arbState)
 					arbState.Reported = true
-					logging.LogLineToFile("Found arb opportunity: " +
-						arbState.Triangle.CoinA.CoinSymbol + "->" +
-							arbState.Triangle.CoinB.CoinSymbol + "->" +
-								arbState.Triangle.CoinC.CoinSymbol + "->" +
-									arbState.Triangle.CoinA.CoinSymbol +
-										" Before: " + common.FloatToString(arbState.QtyBefore) + arbState.Triangle.CoinA.CoinSymbol +
-											" After: " + common.FloatToString(arbState.QtyAfter) + arbState.Triangle.CoinA.CoinSymbol +
-												" Relative Profit: " + common.FloatToString(arbState.ProfitRelative * 100.0) + "%" +
-													" Lasted for " + arbState.LastUpdateTs.Sub(arbState.StartTs).String() +
-														" Started at " + arbState.StartTs.String())
 				}
 			}
 			arbStatesMutex.Unlock()

@@ -13,14 +13,10 @@ import (
 const (
 	API_BASE_URL = "https://api.binance.com/"
 	API_V1       = API_BASE_URL + "api/v1/"
-	API_V3       = API_BASE_URL + "api/v3/"
 
 	TICKER_URI             = "ticker/24hr?symbol=%s"
 	TICKERS_URI            = "ticker/allBookTickers"
 	DEPTH_URI              = "depth?symbol=%s&limit=%d"
-	ACCOUNT_URI            = "account?"
-	ORDER_URI              = "order?"
-	UNFINISHED_ORDERS_INFO = "openOrders?"
 
 	MIN_DEPTH = 5
 	MAX_DEPTH = 100
@@ -62,7 +58,7 @@ func (bn *Binance) GetAllPairs() ([]*CoinPair, error) {
 	return pairs, nil
 }
 
-func (bn *Binance) GetAllTickers() (map[string]*Ticker, error) {
+func (bn *Binance) GetAllTickers() (*TickersMap, error) {
 	tickersUri := API_V1 + TICKERS_URI
 	tickerList, err := HttpGetList(bn.httpClient, tickersUri)
 
@@ -71,7 +67,7 @@ func (bn *Binance) GetAllTickers() (map[string]*Ticker, error) {
 		return nil, err
 	}
 
-	tickers := make(map[string]*Ticker)
+	tickers := make(TickersMap)
 
 	for _, tickerInterface := range tickerList {
 		tickerMap := tickerInterface.(map[string]interface {})
@@ -89,7 +85,7 @@ func (bn *Binance) GetAllTickers() (map[string]*Ticker, error) {
 		}
 	}
 
-	return tickers, nil
+	return &tickers, nil
 }
 
 func (bn *Binance) GetDepth(size int, currencyPair string) (*Depth, error) {
@@ -114,9 +110,6 @@ func (bn *Binance) GetDepth(size int, currencyPair string) (*Depth, error) {
 	lastUpdateId := resp["lastUpdateId"].(float64)
 	bids := resp["bids"].([]interface{})
 	asks := resp["asks"].([]interface{})
-
-	//log.Println(bids)
-	//log.Println(asks)
 
 	depth := new(Depth)
 

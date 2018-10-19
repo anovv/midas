@@ -13,6 +13,8 @@ type Message struct {
 const (
 	DEPTH_REQ  = "depth_req"
 	DEPTH_RESP  = "depth_resp"
+	TICKERS_MAP_REQ = "tickers_map_req"
+	TICKERS_MAP_RESP = "tickers_map_resp"
 	CONNECT_EYE  = "connect_eye"
 	CONFIRM_PORTS  = "confirm_ports"
 	KILL_EYE  = "kill_eye"
@@ -27,6 +29,7 @@ const (
 	CURRENCY_PAIR           = "currency_pair"
 	EXCHANGE                = "exchange"
 	DEPTH_SERIALIZED        = "depth_serialized"
+	TICKERS_MAP_SERIALIZED        = "tickers_map_serialized"
 	FETCH_TIME_MICROSECONDS = "fetch_time_microseconds"
 )
 

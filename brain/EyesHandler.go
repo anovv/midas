@@ -1,19 +1,16 @@
 package brain
 
 import (
-	. "github.com/pebbe/zmq4"
-	"fmt"
+	"github.com/pebbe/zmq4"
 	"strconv"
-	. "midas/common"
+	"midas/common"
 	"time"
-	//"encoding/json"
 	"encoding/json"
+	"log"
 )
 
 const (
 	INPUT_BUFFER_SIZE = 10000
-	CONNECTION_RECEIVER_PORT = 5500
-	BASE_PORT = 5501
 	TCP_PREFIX = "tcp://*:"
 )
 
@@ -27,8 +24,8 @@ const (
 
 type EyeHandle struct {
 	ChannelIn *chan string
-	SocketIn *Socket
-	SocketOut *Socket
+	SocketIn *zmq4.Socket
+	SocketOut *zmq4.Socket
 	EyeId int
 	PortPair *PortPair
 	EyeState EyeState
@@ -44,37 +41,36 @@ type AvgFetchTimeStat struct {
 	NumSamples int
 }
 
+var lastUpd = time.Now()
+
 var eyes = make(map[int]*EyeHandle)
 var lastConnectedEyeId = -1
 
 var pairsPerExchange = map[string][]string{
-	BINANCE: {"ETHBTC"},
+	common.BINANCE: {"ETHBTC"},
 }
 
 var avgFetchTimePerExchange = map[string]*AvgFetchTimeStat{
-	BINANCE: {
+	common.BINANCE: {
 		0,
 		0,
 	},
 }
 
-var rateLimitDelaysPerExchange = map[string]int{
-	BINANCE: int(0.05 * 1000 * 1000), // limit = 1200 reqs/min, delay in microseconds
-}
-
-func ScheduleUpdates() {
+// TODO merge depth and ticker updates in a single function
+func ScheduleDepthUpdates() {
 		for exchange, pairList := range pairsPerExchange {
 			go func() {
 				var pairIndex = 0
 				for {
-					for eyeId, eyeHandle := range eyes {
+					for _, eyeHandle := range eyes {
 						pair := pairList[pairIndex]
-						delay := getDelayMicroSeconds(exchange, pair, eyeId)
-						message := Message{
-							DEPTH_REQ,
+						delay := getDelayMicroSeconds(common.DEPTH_REQ, exchange)
+						message := common.Message{
+							common.DEPTH_REQ,
 							map[string]string{
-								CURRENCY_PAIR: pair,
-								EXCHANGE: exchange,
+								common.CURRENCY_PAIR: pair,
+								common.EXCHANGE: exchange,
 							},
 						}
 						time.Sleep(time.Duration(delay) * time.Microsecond)
@@ -89,44 +85,76 @@ func ScheduleUpdates() {
 		}
 }
 
-func getDelayMicroSeconds(exchange string, pair string, eyeId int) int {
-	numEyes := len(eyes)
-	numPairs := len(pairsPerExchange[exchange])
-	if numEyes <= numPairs {
-		return rateLimitDelaysPerExchange[exchange]
+// TODO merge depth and ticker updates in a single function
+func ScheduleTickerUpdates() {
+	for exchange, _ := range pairsPerExchange {
+		go func() {
+			for {
+				for _, eyeHandle := range eyes {
+					delay := getDelayMicroSeconds(common.TICKERS_MAP_REQ, exchange)
+					message := common.Message{
+						common.TICKERS_MAP_REQ,
+						map[string]string{
+							common.EXCHANGE: exchange,
+						},
+					}
+					time.Sleep(time.Duration(delay) * time.Microsecond)
+					*eyeHandle.ChannelIn<-message.SerializeMessage()
+				}
+			}
+		} ()
 	}
+}
 
-	avgFetchTime := avgFetchTimePerExchange[exchange].AvgFetchTimeMicroSeconds
+func getDelayMicroSeconds(command string, exchange string) int {
+	switch command {
+	case common.DEPTH_REQ:
+		// TODO this is most likely wrong!
+		numEyes := len(eyes)
+		numPairs := len(pairsPerExchange[exchange])
+		if numEyes <= numPairs {
+			return brainConfig.FETCH_DELAYS_MICROS[exchange][command]
+		}
 
-	return rateLimitDelaysPerExchange[exchange] + int(avgFetchTime * numPairs/numEyes)
+		avgFetchTime := avgFetchTimePerExchange[exchange].AvgFetchTimeMicroSeconds
+
+		return brainConfig.FETCH_DELAYS_MICROS[exchange][command] + int(avgFetchTime*numPairs/numEyes)
+
+	case common.TICKERS_MAP_REQ:
+		numEyes := len(eyes)
+		return int(brainConfig.FETCH_DELAYS_MICROS[exchange][command]/numEyes)
+
+	default:
+		return 0
+	}
 }
 
 func SetupRequestReceiver() {
-	requestReceiver, _ := NewSocket(REP)
-	requestReceiver.Bind(TCP_PREFIX + strconv.Itoa(CONNECTION_RECEIVER_PORT))
+	requestReceiver, _ := zmq4.NewSocket(zmq4.REP)
+	requestReceiver.Bind(TCP_PREFIX + strconv.Itoa(brainConfig.CONNECTION_RECEIVER_PORT))
 	for {
 		request, error := requestReceiver.Recv(0)
 		if error != nil {
-			fmt.Println("Receiver error error: " + error.Error())
+			log.Println("Receiver error error: " + error.Error())
 			continue
 		}
 		handleNewConnectionRequest(requestReceiver, request)
 	}
 }
 
-func handleNewConnectionRequest(requestReceiver *Socket, requestSerialized string) {
-	request := DeserializeMessage(requestSerialized)
-	if request.Command != CONNECT_EYE {
-		fmt.Println("Bad connection request, aborting...")
+func handleNewConnectionRequest(requestReceiver *zmq4.Socket, requestSerialized string) {
+	request := common.DeserializeMessage(requestSerialized)
+	if request.Command != common.CONNECT_EYE {
+		log.Println("Bad connection request, aborting...")
 		return
 	}
- 	fmt.Println("New connection request")
+ 	log.Println("New connection request")
 
 	eyeId := lastConnectedEyeId + 1
 	var portIn int
 	if eyeId == 0 {
 		// first connection
-		portIn = BASE_PORT
+		portIn = brainConfig.BASE_PORT
 	} else {
 		lastEyeHandle := eyes[lastConnectedEyeId]
 		portIn = lastEyeHandle.PortPair.PortIn + 2
@@ -145,11 +173,11 @@ func handleNewConnectionRequest(requestReceiver *Socket, requestSerialized strin
 		NOT_READY,
 	}
 	eyes[eyeId] = &eyeHandle
-	message := Message{
-		CONFIRM_PORTS,
+	message := common.Message{
+		common.CONFIRM_PORTS,
 		map[string]string{
-			PORT_IN: strconv.Itoa(portIn),
-			PORT_OUT: strconv.Itoa(portOut),
+			common.PORT_IN: strconv.Itoa(portIn),
+			common.PORT_OUT: strconv.Itoa(portOut),
 			},
 	}
 	requestReceiver.Send(message.SerializeMessage(), 0)
@@ -159,8 +187,8 @@ func handleNewConnectionRequest(requestReceiver *Socket, requestSerialized strin
 func CleanupEyesHandler() {
 	for eyeId := range eyes {
 		eyeInterface := eyes[eyeId]
-		message := Message{
-			KILL_EYE,
+		message := common.Message{
+			common.KILL_EYE,
 			nil,
 		}
 		*eyeInterface.ChannelIn<-message.SerializeMessage()
@@ -170,15 +198,15 @@ func CleanupEyesHandler() {
 	}
 }
 
-func setupOutSocket(portOut int, eyeId int) *Socket {
-	out, _ := NewSocket(PULL)
+func setupOutSocket(portOut int, eyeId int) *zmq4.Socket {
+	out, _ := zmq4.NewSocket(zmq4.PULL)
 	out.Bind(TCP_PREFIX + strconv.Itoa(portOut))
-	fmt.Println("Waiting for eye " + strconv.Itoa(eyeId) + " to confirm out connection on port " + strconv.Itoa(portOut))
+	log.Println("Waiting for eye " + strconv.Itoa(eyeId) + " to confirm out connection on port " + strconv.Itoa(portOut))
 	go func(){
 		for {
 			msg, error := out.Recv(0)
 			if error != nil {
-				fmt.Println("Out error: " + error.Error())
+				log.Println("Out error: " + error.Error())
 				continue
 			}
 			go func() {
@@ -190,16 +218,16 @@ func setupOutSocket(portOut int, eyeId int) *Socket {
 	return out
 }
 
-func setupInSocket(portIn int, eyeId int, channelIn *chan string) *Socket {
-	in, _ := NewSocket(PUSH)
+func setupInSocket(portIn int, eyeId int, channelIn *chan string) *zmq4.Socket {
+	in, _ := zmq4.NewSocket(zmq4.PUSH)
 	in.Bind(TCP_PREFIX + strconv.Itoa(portIn))
-	fmt.Println("Waiting for eye " + strconv.Itoa(eyeId) + " to confirm in connection on port " + strconv.Itoa(portIn))
+	log.Println("Waiting for eye " + strconv.Itoa(eyeId) + " to confirm in connection on port " + strconv.Itoa(portIn))
 	go func(){
 		for {
 			msg := <-*channelIn
 			_ , error := in.Send(msg,0)
 			if error != nil {
-				fmt.Println("In error: " + error.Error())
+				log.Println("In error: " + error.Error())
 			}
 		}
 	}()
@@ -208,44 +236,62 @@ func setupInSocket(portIn int, eyeId int, channelIn *chan string) *Socket {
 }
 
 func handleMessage(messageSerialized string, eyeId int) {
-	message := DeserializeMessage(messageSerialized)
+	message := common.DeserializeMessage(messageSerialized)
 	command := message.Command
 	args := message.Args
 	switch command {
-	case DEPTH_RESP:
-		depthSerialized := args[DEPTH_SERIALIZED]
-		depth := DeserializeDepth(depthSerialized)
+	case common.DEPTH_RESP:
+		depthSerialized := args[common.DEPTH_SERIALIZED]
+		depth := common.DeserializeDepth(depthSerialized)
 		dj, _ := json.Marshal(depth)
-		fmt.Println("Received depth update: " + string(dj))
-		fetchTimeMicroSeconds, _ := strconv.Atoi(args[FETCH_TIME_MICROSECONDS])
-		exchange := args[EXCHANGE]
-		// Update avg fetch
-		// TODO make atomic/sync
-		avgFetchTimeStat := avgFetchTimePerExchange[exchange]
-		// TODO Math could be wrong here (check what "/" does)
-		newAvg := int((avgFetchTimeStat.AvgFetchTimeMicroSeconds * avgFetchTimeStat.NumSamples + fetchTimeMicroSeconds)/(avgFetchTimeStat.NumSamples + 1))
-		avgFetchTimeStat.AvgFetchTimeMicroSeconds = newAvg
-		avgFetchTimeStat.NumSamples = avgFetchTimeStat.NumSamples + 1
+		log.Println("Received depth update: " + string(dj))
+		updateAvgFetchTime(message)
 
-	case CONF_OUT:
-		fmt.Println("Eye " + strconv.Itoa(eyeId) + " confirmed out")
+	case common.TICKERS_MAP_RESP:
+		//tickersMapSerialized := args[common.TICKERS_MAP_SERIALIZED]
+		//tickersMap := common.DeserializeTickersMap(tickersMapSerialized)
+		//tmj, _ := json.Marshal(tickersMap)
+		//log.Println("Received tickers update: " + string(tmj))
+		updateAvgFetchTime(message)
+
+		diff := time.Since(lastUpd)
+		log.Println("Upd time: " + diff.String())
+		lastUpd = time.Now()
+
+	case common.CONF_OUT:
+		log.Println("Eye " + strconv.Itoa(eyeId) + " confirmed out")
 		eyeState := eyes[eyeId].EyeState
 		switch eyeState {
 		case NOT_READY:
 			eyes[eyeId].EyeState = OUT_READY
 		case IN_READY:
 			eyes[eyeId].EyeState = READY
-			fmt.Println("Eye " + strconv.Itoa(eyeId) + " is ready")
+			log.Println("Eye " + strconv.Itoa(eyeId) + " is ready")
 		}
-	case CONF_IN:
-		fmt.Println("Eye " + strconv.Itoa(eyeId) + " confirmed in")
+	case common.CONF_IN:
+		log.Println("Eye " + strconv.Itoa(eyeId) + " confirmed in")
 		eyeState := eyes[eyeId].EyeState
 		switch eyeState {
 		case NOT_READY:
 			eyes[eyeId].EyeState = IN_READY
 		case OUT_READY:
 			eyes[eyeId].EyeState = READY
-			fmt.Println("Eye " + strconv.Itoa(eyeId) + " is ready")
+			log.Println("Eye " + strconv.Itoa(eyeId) + " is ready")
 		}
 	}
+}
+
+func updateAvgFetchTime(message *common.Message) {
+	fetchTimeMicroSeconds, _ := strconv.Atoi(message.Args[common.FETCH_TIME_MICROSECONDS])
+	exchange := message.Args[common.EXCHANGE]
+	// TODO use only recent samples to update avg fetch time
+	// TODO make atomic/sync
+	avgFetchTimeStat := avgFetchTimePerExchange[exchange]
+
+	//newAvg := int((avgFetchTimeStat.AvgFetchTimeMicroSeconds * avgFetchTimeStat.NumSamples + fetchTimeMicroSeconds)/(avgFetchTimeStat.NumSamples + 1))
+	newAvg := int((avgFetchTimeStat.AvgFetchTimeMicroSeconds + fetchTimeMicroSeconds)/2)
+	avgFetchTimeStat.AvgFetchTimeMicroSeconds = newAvg
+	avgFetchTimeStat.NumSamples = avgFetchTimeStat.NumSamples + 1
+
+	//log.Println("Avg fetch time: " + strconv.Itoa(newAvg))
 }

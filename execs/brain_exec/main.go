@@ -5,9 +5,9 @@ import (
 )
 
 func main() {
-	//ScheduleUpdates()
-	//SetupRequestReceiver()
-	//CleanupEyesHandler()
+	brain.ScheduleTickerUpdates()
+	brain.SetupRequestReceiver()
+	brain.CleanupEyesHandler()
 	//InitCoinGraph()
-	brain.RunArbDetector()
+	//brain.RunArbDetector()
 }

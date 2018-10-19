@@ -15,12 +15,17 @@ import (
 	"midas/configuration"
 )
 
+const (
+	BINANCE_DEFAULT_FEE = 0.001
+	BINANCE_BNB_FEE = 0.00075
+)
+
 var api = binance.New(http.DefaultClient, "", "")
 var triangles = make(map[string]*arb.Triangle)
 var pairs = make(map[string]*common.CoinPair)
 
 // No need for mutex as we simply update this variable with a new map instance on each write
-var tickers = make(map[string]*common.Ticker)
+var tickersMap *common.TickersMap
 
 // TODO use syncMap?
 var arbStates = make(map[string]*arb.State)
@@ -33,50 +38,6 @@ func RunArbDetector() {
 	runTickerUpdates()
 	runReportArb()
 	runDetectArbBLOCKING()
-	//timeStart := time.Now()
-	//coinA := common.Coin{
-	//	"BTC",
-	//}
-	//coinB := common.Coin{
-	//	"ETH",
-	//}
-	//coinC := common.Coin{
-	//	"BNB",
-	//}
-	//triangle := &arb.Triangle{
-	//	PairAB: &common.CoinPair{
-	//		PairSymbol: "BTCETH",
-	//		CoinA: coinA,
-	//		CoinB: coinB,
-	//	},
-	//	PairBC: &common.CoinPair{
-	//		PairSymbol: "ETHBNB",
-	//		CoinA: coinB,
-	//		CoinB: coinC,
-	//	},
-	//	PairAC: &common.CoinPair{
-	//		PairSymbol: "BTCBNB",
-	//		CoinA: coinA,
-	//		CoinB: coinC,
-	//	},
-	//	CoinA: coinA,
-	//	CoinB: coinB,
-	//	CoinC: coinC,
-	//	Key: "test_key",
-	//
-	//}
-	//timeEnd := time.Now()
-	//arbState := &arb.State{
-	//	QtyBefore: 1.66565656,
-	//	QtyAfter: 1.6767676887,
-	//	ProfitRelative: 0.0013435,
-	//	Triangle: triangle,
-	//	StartTs: timeStart,
-	//	LastUpdateTs: timeEnd,
-	//	Reported: true,
-	//}
-	//logging.RecordArbState(arbState)
-	//time.Sleep(time.Duration(25000000*1000*1000) * time.Microsecond)
 }
 
 func initArbDetector() {
@@ -109,7 +70,6 @@ func initArbDetector() {
 	}
 
 	delta := time.Since(tStart)
-	printTriangleForSymbols()
 	log.Println("Initializing finished in " + delta.String())
 	logging.LogLineToFile("Launched at " + time.Now().String())
 }
@@ -118,11 +78,10 @@ func runTickerUpdates() {
 	log.Println("Running tickers updates...")
 	go func() {
 		for {
-			tickers, _ = api.GetAllTickers() // weight is 40
-			if len(tickers) == 0 {
+			tickersMap, _ = api.GetAllTickers() // weight is 40
+			if len(*tickersMap) == 0 {
 				log.Println("Failed to fetch tickers")
 			}
-			//log.Println("Updated " + strconv.Itoa(len(tickers)) + " tickers")
 			time.Sleep(time.Duration(brainConfig.TICKERS_UPDATE_PERIOD_MICROS) * time.Microsecond)
 		}
 	}()
@@ -171,14 +130,6 @@ func runDetectArbBLOCKING() {
 			profit := (newQtyA - qtyA)/qtyA
 
 			if newQtyA > qtyA {
-				// found arbitrage
-				//	triangle.CoinA.CoinSymbol + "->" +
-				//		triangle.CoinB.CoinSymbol + "->" +
-				//			triangle.CoinC.CoinSymbol + "->" +
-				//				triangle.CoinA.CoinSymbol +
-				//					" Before: " + FloatToString(qtyA) + triangle.CoinA.CoinSymbol +
-				//						" After: " + FloatToString(newQtyA) + triangle.CoinA.CoinSymbol +
-				//							" Profit: " + FloatToString(profit))
 				arbStateKey := triangle.Key + "_" + common.FloatToString(profit)
 
 				if arbStates[arbStateKey] == nil {
@@ -211,12 +162,12 @@ func simTrade(qtyA float64, pairSymbol string, coinASymbol string) (bool, float6
 		buyA = true
 	}
 
-	fee := 0.001
+	fee := BINANCE_DEFAULT_FEE
 	if strings.Contains(pairSymbol, "BNB") {
-		fee = 0.0005
+		fee = BINANCE_BNB_FEE
 	}
 
-	ticker := tickers[pairSymbol]
+	ticker := (*tickersMap)[pairSymbol]
 
 	if ticker == nil {
 		return false, 0
@@ -289,23 +240,4 @@ func findPairForCoins(coinA common.Coin, coinB common.Coin, pairs ...*common.Coi
 	}
 
 	panic("Couldn't find coin pair")
-}
-
-func printTriangleForSymbols (symbols ...string) {
-	for key, triangle := range triangles {
-		keyContainsSymbols := true
-		for _, symbol := range symbols {
-			keyContainsSymbols = keyContainsSymbols && strings.Contains(key, symbol)
-		}
-		if keyContainsSymbols {
-			log.Println(
-				"Key: " + key +
-					" C1: " + triangle.CoinA.CoinSymbol +
-						" C2: " + triangle.CoinB.CoinSymbol +
-							" C3: " + triangle.CoinC.CoinSymbol +
-								" Triangle: " + triangle.PairAB.PairSymbol +
-									"->" + triangle.PairBC.PairSymbol +
-										"->" + triangle.PairAC.PairSymbol)
-		}
-	}
 }

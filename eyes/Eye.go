@@ -1,41 +1,27 @@
 package eyes
 
 import (
-	//. "midas/apis/binance"
-	. "midas/common"
-	. "github.com/pebbe/zmq4"
-	//"net/http"
-	//"encoding/json"
+	"midas/common"
+	"github.com/pebbe/zmq4"
 	"sync"
-	"fmt"
 	"strconv"
-	//"strings"
 	"midas/apis/binance"
 	"net/http"
 	"time"
+	"log"
+	"midas/configuration"
 )
 
-//type EyeCallback func(dep *Depth, err error) ()
-//func (eye *Eye) See(callback EyeCallback) {
-//
-//	bn := binance.New(http.DefaultClient, "", "")
-//
-//	for {
-//		dep, err := bn.GetDepth(100, ETH_BTC)
-//		//depJson, _ := json.Marshal(dep)
-//		callback(dep, err)
-//	}
-//}
 const (
 	TCP_PREFIX    = "tcp://"
-	BRAIN_ADDRESS = "localhost"
-	BRAIN_CONNECTION_RECEIVER_PORT = 5500
 	INPUT_BUFFER_SIZE = 10000
 )
 
+var eyeConfig = configuration.ReadEyeConfig()
+
 var channelIn = make(chan string, INPUT_BUFFER_SIZE)
-var socketIn *Socket
-var socketOut *Socket
+var socketIn *zmq4.Socket
+var socketOut *zmq4.Socket
 var portIn int
 var portOut int
 var setupWg sync.WaitGroup
@@ -48,31 +34,31 @@ func SetupEye() {
 	socketOut = setupOutSocket()
 
 	setupWg.Wait()
-	fmt.Println("Killed eye")
+	log.Println("Killed eye")
 }
 
 func requestSetupMetadata() {
-	socket, _ := NewSocket(REQ)
-	address := TCP_PREFIX + BRAIN_ADDRESS + ":" + strconv.Itoa(BRAIN_CONNECTION_RECEIVER_PORT)
-	fmt.Println("Requesting metadata from brain at address: " + address)
+	socket, _ := zmq4.NewSocket(zmq4.REQ)
+	address := TCP_PREFIX + eyeConfig.BRAIN_ADDRESS + ":" + strconv.Itoa(eyeConfig.BRAIN_CONNECTION_RECEIVER_PORT)
+	log.Println("Requesting metadata from brain at address: " + address)
 	socket.Connect(address)
 	// TODO proper message
-	message := Message{
-		CONNECT_EYE,
+	message := common.Message{
+		common.CONNECT_EYE,
 		nil,
 	}
 	socket.Send(message.SerializeMessage(), 0)
 	resp, _ := socket.Recv(0)
-	response := DeserializeMessage(resp)
-	if response.Command != CONFIRM_PORTS {
-		fmt.Println("Bad port confirmation message from Brain, aborting...")
+	response := common.DeserializeMessage(resp)
+	if response.Command != common.CONFIRM_PORTS {
+		log.Println("Bad port confirmation message from Brain, aborting...")
 		return
 	}
 	args := response.Args
 	// Brain port_in == Eye port_out
-	fmt.Println("Received metadata: Port In: " + args[PORT_OUT] + " Port out: " + args[PORT_IN])
-	portIn, _ = strconv.Atoi(args[PORT_OUT])
-	portOut, _ = strconv.Atoi(args[PORT_IN])
+	log.Println("Received metadata: Port In: " + args[common.PORT_OUT] + " Port out: " + args[common.PORT_IN])
+	portIn, _ = strconv.Atoi(args[common.PORT_OUT])
+	portOut, _ = strconv.Atoi(args[common.PORT_IN])
 }
 
 func CleanupEye() {
@@ -80,13 +66,13 @@ func CleanupEye() {
 	socketIn.Close()
 }
 
-func setupOutSocket() *Socket {
-	out, _ := NewSocket(PULL)
-	address := TCP_PREFIX + BRAIN_ADDRESS + ":" + strconv.Itoa(portOut)
-	fmt.Println("Eye: connecting out to: " + address)
+func setupOutSocket() *zmq4.Socket {
+	out, _ := zmq4.NewSocket(zmq4.PULL)
+	address := TCP_PREFIX + eyeConfig.BRAIN_ADDRESS + ":" + strconv.Itoa(portOut)
+	log.Println("Eye: connecting out to: " + address)
 	out.Connect(address)
-	message := Message{
-		CONF_OUT,
+	message := common.Message{
+		common.CONF_OUT,
 		nil,
 	}
 	socketIn.Send(message.SerializeMessage(), 0)
@@ -101,13 +87,13 @@ func setupOutSocket() *Socket {
 	return out
 }
 
-func setupInSocket() *Socket {
-	in, _ := NewSocket(PUSH)
-	address := TCP_PREFIX + BRAIN_ADDRESS + ":" + strconv.Itoa(portIn)
-	fmt.Println("Eye: connecting in to: " + address)
+func setupInSocket() *zmq4.Socket {
+	in, _ := zmq4.NewSocket(zmq4.PUSH)
+	address := TCP_PREFIX + eyeConfig.BRAIN_ADDRESS + ":" + strconv.Itoa(portIn)
+	log.Println("Eye: connecting in to: " + address)
 	in.Connect(address)
-	message := Message{
-		CONF_IN,
+	message := common.Message{
+		common.CONF_IN,
 		nil,
 	}
 	in.Send(message.SerializeMessage(), 0)
@@ -122,19 +108,19 @@ func setupInSocket() *Socket {
 }
 
 func handleMessage(messageSerialized string) {
-	fmt.Println("Eye received: " + messageSerialized)
-	message := DeserializeMessage(messageSerialized)
+	log.Println("Eye received: " + messageSerialized)
+	message := common.DeserializeMessage(messageSerialized)
 	command := message.Command
 	switch command {
-	case KILL_EYE:
+	case common.KILL_EYE:
 		setupWg.Done()
-	case DEPTH_REQ:
+	case common.DEPTH_REQ:
 		args := message.Args
-		pair := args[CURRENCY_PAIR]
-		exchange := args[EXCHANGE]
+		pair := args[common.CURRENCY_PAIR]
+		exchange := args[common.EXCHANGE]
 
-		if exchange != BINANCE {
-			fmt.Println("Unsupported exchange " + exchange)
+		if exchange != common.BINANCE {
+			log.Println("Unsupported exchange " + exchange)
 			return
 		}
 
@@ -145,20 +131,55 @@ func handleMessage(messageSerialized string) {
 			tStart := time.Now()
 			depth, err := bn.GetDepth(100, pair)
 			if err != nil {
-				fmt.Println("Error fetching depth")
+				log.Println("Error fetching depth")
 				return
 			}
 			delta := time.Since(tStart) // nanosec
 			fetchTimeMicroSeconds := strconv.Itoa(int(delta/1000)) // microsec
-			fmt.Println("Depth fetched in " + fetchTimeMicroSeconds + " microseconds")
+			log.Println("Depth fetched in " + fetchTimeMicroSeconds + " microseconds")
 
-			response := Message{
-				DEPTH_RESP,
+			response := common.Message{
+				common.DEPTH_RESP,
 				map[string]string{
-					DEPTH_SERIALIZED:        depth.Serialize(),
-					FETCH_TIME_MICROSECONDS: fetchTimeMicroSeconds,
-					CURRENCY_PAIR:           pair,
-					EXCHANGE:                exchange,
+					common.DEPTH_SERIALIZED:        depth.Serialize(),
+					common.FETCH_TIME_MICROSECONDS: fetchTimeMicroSeconds,
+					common.CURRENCY_PAIR:           pair,
+					common.EXCHANGE:                exchange,
+				},
+			}
+
+			channelIn<-response.SerializeMessage()
+		} ()
+
+	case common.TICKERS_MAP_REQ:
+		args := message.Args
+		exchange := args[common.EXCHANGE]
+
+		if exchange != common.BINANCE {
+			log.Println("Unsupported exchange " + exchange)
+			return
+		}
+
+		if bn == nil {
+			bn = binance.New(http.DefaultClient, "", "")
+		}
+		go func() {
+			tStart := time.Now()
+			tickers, err := bn.GetAllTickers()
+			if err != nil {
+				log.Println("Error fetching tickers")
+				return
+			}
+			delta := time.Since(tStart) // nanosec
+			fetchTimeMicroSeconds := strconv.Itoa(int(delta/1000)) // microsec
+			log.Println("Tickers fetched in " + fetchTimeMicroSeconds + " microseconds")
+
+			response := common.Message{
+				common.TICKERS_MAP_RESP,
+				map[string]string{
+					common.TICKERS_MAP_SERIALIZED:	tickers.Serialize(),
+					common.FETCH_TIME_MICROSECONDS:	fetchTimeMicroSeconds,
+					common.EXCHANGE:				exchange,
 				},
 			}
 

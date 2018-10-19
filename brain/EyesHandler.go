@@ -41,7 +41,8 @@ type AvgFetchTimeStat struct {
 	NumSamples int
 }
 
-var lastUpd = time.Now()
+// No need for mutex as we simply update this variable with a new map instance on each write
+var tickersMap *common.TickersMap
 
 var eyes = make(map[int]*EyeHandle)
 var lastConnectedEyeId = -1
@@ -130,16 +131,18 @@ func getDelayMicroSeconds(command string, exchange string) int {
 }
 
 func SetupRequestReceiver() {
-	requestReceiver, _ := zmq4.NewSocket(zmq4.REP)
-	requestReceiver.Bind(TCP_PREFIX + strconv.Itoa(brainConfig.CONNECTION_RECEIVER_PORT))
-	for {
-		request, error := requestReceiver.Recv(0)
-		if error != nil {
-			log.Println("Receiver error error: " + error.Error())
-			continue
+	go func() {
+		requestReceiver, _ := zmq4.NewSocket(zmq4.REP)
+		requestReceiver.Bind(TCP_PREFIX + strconv.Itoa(brainConfig.CONNECTION_RECEIVER_PORT))
+		for {
+			request, error := requestReceiver.Recv(0)
+			if error != nil {
+				log.Println("Receiver error error: " + error.Error())
+				continue
+			}
+			handleNewConnectionRequest(requestReceiver, request)
 		}
-		handleNewConnectionRequest(requestReceiver, request)
-	}
+	} ()
 }
 
 func handleNewConnectionRequest(requestReceiver *zmq4.Socket, requestSerialized string) {
@@ -248,15 +251,9 @@ func handleMessage(messageSerialized string, eyeId int) {
 		updateAvgFetchTime(message)
 
 	case common.TICKERS_MAP_RESP:
-		//tickersMapSerialized := args[common.TICKERS_MAP_SERIALIZED]
-		//tickersMap := common.DeserializeTickersMap(tickersMapSerialized)
-		//tmj, _ := json.Marshal(tickersMap)
-		//log.Println("Received tickers update: " + string(tmj))
+		tickersMapSerialized := args[common.TICKERS_MAP_SERIALIZED]
+		tickersMap = common.DeserializeTickersMap(tickersMapSerialized)
 		updateAvgFetchTime(message)
-
-		diff := time.Since(lastUpd)
-		log.Println("Upd time: " + diff.String())
-		lastUpd = time.Now()
 
 	case common.CONF_OUT:
 		log.Println("Eye " + strconv.Itoa(eyeId) + " confirmed out")
@@ -282,6 +279,7 @@ func handleMessage(messageSerialized string, eyeId int) {
 }
 
 func updateAvgFetchTime(message *common.Message) {
+	// TODO decide if it's needed at all
 	fetchTimeMicroSeconds, _ := strconv.Atoi(message.Args[common.FETCH_TIME_MICROSECONDS])
 	exchange := message.Args[common.EXCHANGE]
 	// TODO use only recent samples to update avg fetch time

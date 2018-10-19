@@ -24,9 +24,6 @@ var api = binance.New(http.DefaultClient, "", "")
 var triangles = make(map[string]*arb.Triangle)
 var pairs = make(map[string]*common.CoinPair)
 
-// No need for mutex as we simply update this variable with a new map instance on each write
-var tickersMap *common.TickersMap
-
 // TODO use syncMap?
 var arbStates = make(map[string]*arb.State)
 var arbStatesMutex = &sync.RWMutex{}
@@ -35,7 +32,7 @@ var brainConfig = configuration.ReadBrainConfig()
 
 func RunArbDetector() {
 	initArbDetector()
-	runTickerUpdates()
+	//runTickerUpdates()
 	runReportArb()
 	runDetectArbBLOCKING()
 }
@@ -74,18 +71,18 @@ func initArbDetector() {
 	logging.LogLineToFile("Launched at " + time.Now().String())
 }
 
-func runTickerUpdates() {
-	log.Println("Running tickers updates...")
-	go func() {
-		for {
-			tickersMap, _ = api.GetAllTickers() // weight is 40
-			if len(*tickersMap) == 0 {
-				log.Println("Failed to fetch tickers")
-			}
-			time.Sleep(time.Duration(brainConfig.TICKERS_UPDATE_PERIOD_MICROS) * time.Microsecond)
-		}
-	}()
-}
+//func runTickerUpdates() {
+//	log.Println("Running tickers updates...")
+//	go func() {
+//		for {
+//			tickersMap, _ = api.GetAllTickers() // weight is 40
+//			if len(*tickersMap) == 0 {
+//				log.Println("Failed to fetch tickers")
+//			}
+//			time.Sleep(time.Duration(brainConfig.TICKERS_UPDATE_PERIOD_MICROS) * time.Microsecond)
+//		}
+//	}()
+//}
 
 func runReportArb() {
 	// Goes through all arb states and prints unreported
@@ -157,6 +154,10 @@ func runDetectArbBLOCKING() {
 // given rate B/A with bid price (or A/B with ask price),
 // trades qtyA of A for B and returns qtyB
 func simTrade(qtyA float64, pairSymbol string, coinASymbol string) (bool, float64) {
+	if tickersMap == nil {
+		return false, 0
+	}
+
 	buyA := false
 	if strings.HasSuffix(pairSymbol, coinASymbol) {
 		buyA = true

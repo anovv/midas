@@ -7,7 +7,7 @@ import (
 func main() {
 	brain.ScheduleTickerUpdates()
 	brain.SetupRequestReceiver()
-	brain.CleanupEyesHandler()
+	defer brain.CleanupEyesHandler()
 	//InitCoinGraph()
-	//brain.RunArbDetector()
+	brain.RunArbDetector()
 }

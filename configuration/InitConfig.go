@@ -12,11 +12,11 @@ const (
 )
 
 type BrainConfig struct {
-	TICKERS_UPDATE_PERIOD_MICROS int `json:"tickers_update_period_micros"`
 	ARB_REPORT_UPDATE_THRESHOLD_MICROS int `json:"arb_report_update_threshold_micros"`
 	CONNECTION_RECEIVER_PORT int `json:"connection_receiver_port"`
 	BASE_PORT int `json:"base_port"`
 	FETCH_DELAYS_MICROS map[string]map[string]int `json:"fetch_delays_micros"` // delays per exchange per command
+	MYSQL_PASSWORD string `json:"mysql_password"`
 }
 
 type EyeConfig struct {

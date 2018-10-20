@@ -32,14 +32,13 @@ var brainConfig = configuration.ReadBrainConfig()
 
 func RunArbDetector() {
 	initArbDetector()
-	//runTickerUpdates()
 	runReportArb()
 	runDetectArbBLOCKING()
 }
 
 func initArbDetector() {
 	log.Println("Initializing arb detector...")
-	logging.CreateTableIfNotExists()
+	logging.CreateTableIfNotExistsMySQL()
 	_pairs, err := api.GetAllPairs()
 	if err != nil {
 		panic("Can't fetch list of pairs")
@@ -71,19 +70,6 @@ func initArbDetector() {
 	logging.LogLineToFile("Launched at " + time.Now().String())
 }
 
-//func runTickerUpdates() {
-//	log.Println("Running tickers updates...")
-//	go func() {
-//		for {
-//			tickersMap, _ = api.GetAllTickers() // weight is 40
-//			if len(*tickersMap) == 0 {
-//				log.Println("Failed to fetch tickers")
-//			}
-//			time.Sleep(time.Duration(brainConfig.TICKERS_UPDATE_PERIOD_MICROS) * time.Microsecond)
-//		}
-//	}()
-//}
-
 func runReportArb() {
 	// Goes through all arb states and prints unreported
 	go func() {
@@ -98,17 +84,8 @@ func runReportArb() {
 				// If arb state was not updated by detector routine for more than ARB_REPORT_UPDATE_THRESHOLD_MICROS
 				// we consider arb opportunity is gone
 				if time.Since(arbState.LastUpdateTs) > time.Duration(brainConfig.ARB_REPORT_UPDATE_THRESHOLD_MICROS) * time.Microsecond {
-					log.Println("Found arb opportunity: " +
-						arbState.Triangle.CoinA.CoinSymbol + "->" +
-						arbState.Triangle.CoinB.CoinSymbol + "->" +
-						arbState.Triangle.CoinC.CoinSymbol + "->" +
-						arbState.Triangle.CoinA.CoinSymbol +
-						" Before: " + common.FloatToString(arbState.QtyBefore) + arbState.Triangle.CoinA.CoinSymbol +
-						" After: " + common.FloatToString(arbState.QtyAfter) + arbState.Triangle.CoinA.CoinSymbol +
-						" Relative Profit: " + common.FloatToString(arbState.ProfitRelative * 100.0) + "%" +
-						" Lasted for " + arbState.LastUpdateTs.Sub(arbState.StartTs).String() +
-						" Started at " + arbState.StartTs.String())
-					logging.RecordArbState(arbState)
+					printArbState(arbState)
+					logging.RecordArbStateMySQL(arbState)
 					// TODO remove arbState from map
 					arbState.Reported = true
 				}
@@ -252,4 +229,17 @@ func findPairForCoins(coinA common.Coin, coinB common.Coin, pairs ...*common.Coi
 	}
 
 	panic("Couldn't find coin pair")
+}
+
+func printArbState(arbState *arb.State) {
+	log.Println("Found arb opportunity: " +
+		arbState.Triangle.CoinA.CoinSymbol + "->" +
+		arbState.Triangle.CoinB.CoinSymbol + "->" +
+		arbState.Triangle.CoinC.CoinSymbol + "->" +
+		arbState.Triangle.CoinA.CoinSymbol +
+		" Before: " + common.FloatToString(arbState.QtyBefore) + arbState.Triangle.CoinA.CoinSymbol +
+		" After: " + common.FloatToString(arbState.QtyAfter) + arbState.Triangle.CoinA.CoinSymbol +
+		" Relative Profit: " + common.FloatToString(arbState.ProfitRelative * 100.0) + "%" +
+		" Lasted for " + arbState.LastUpdateTs.Sub(arbState.StartTs).String() +
+		" Started at " + arbState.StartTs.String())
 }

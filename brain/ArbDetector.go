@@ -98,7 +98,18 @@ func runReportArb() {
 				// If arb state was not updated by detector routine for more than ARB_REPORT_UPDATE_THRESHOLD_MICROS
 				// we consider arb opportunity is gone
 				if time.Since(arbState.LastUpdateTs) > time.Duration(brainConfig.ARB_REPORT_UPDATE_THRESHOLD_MICROS) * time.Microsecond {
+					log.Println("Found arb opportunity: " +
+						arbState.Triangle.CoinA.CoinSymbol + "->" +
+						arbState.Triangle.CoinB.CoinSymbol + "->" +
+						arbState.Triangle.CoinC.CoinSymbol + "->" +
+						arbState.Triangle.CoinA.CoinSymbol +
+						" Before: " + common.FloatToString(arbState.QtyBefore) + arbState.Triangle.CoinA.CoinSymbol +
+						" After: " + common.FloatToString(arbState.QtyAfter) + arbState.Triangle.CoinA.CoinSymbol +
+						" Relative Profit: " + common.FloatToString(arbState.ProfitRelative * 100.0) + "%" +
+						" Lasted for " + arbState.LastUpdateTs.Sub(arbState.StartTs).String() +
+						" Started at " + arbState.StartTs.String())
 					logging.RecordArbState(arbState)
+					// TODO remove arbState from map
 					arbState.Reported = true
 				}
 			}

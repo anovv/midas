@@ -13,6 +13,7 @@ const KEEP_ALIVE_USER_DATA_STREAM_PERIOD_MINS = 30
 var listenKey *string
 
 // TODO return channel?
+// TODO combine ws with polling account info
 func StartUserDataStream() {
 	listenKey, err := binance.GetUserDataStreamListenKey()
 	if err != nil {
@@ -28,7 +29,7 @@ func StartUserDataStream() {
 	}
 
 	c.SetCloseHandler(
-		func(code int, text string) error{
+		func(code int, text string) error {
 			restartUserDataStream()
 			return nil
 		},

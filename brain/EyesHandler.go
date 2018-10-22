@@ -51,6 +51,8 @@ var pairsPerExchange = map[string][]string{
 	common.BINANCE: {"ETHBTC"},
 }
 
+var lastUpd = time.Now()
+
 var avgFetchTimePerExchange = map[string]*AvgFetchTimeStat{
 	common.BINANCE: {
 		0,
@@ -251,9 +253,14 @@ func handleMessage(messageSerialized string, eyeId int) {
 		updateAvgFetchTime(message)
 
 	case common.TICKERS_MAP_RESP:
+		diff := time.Since(lastUpd)
+		log.Println("Upd time: " + diff.String())
+		lastUpd = time.Now()
 		tickersMapSerialized := args[common.TICKERS_MAP_SERIALIZED]
 		tickersMap = common.DeserializeTickersMap(tickersMapSerialized)
 		updateAvgFetchTime(message)
+
+
 
 	case common.CONF_OUT:
 		log.Println("Eye " + strconv.Itoa(eyeId) + " confirmed out")

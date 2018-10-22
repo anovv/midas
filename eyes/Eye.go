@@ -26,8 +26,6 @@ var portIn int
 var portOut int
 var setupWg sync.WaitGroup
 
-var bn *binance.Binance
-
 func SetupEye() {
 	requestSetupMetadata()
 	socketIn = setupInSocket()
@@ -124,12 +122,9 @@ func handleMessage(messageSerialized string) {
 			return
 		}
 
-		if bn == nil {
-			bn = binance.New(http.DefaultClient, "", "")
-		}
 		go func() {
 			tStart := time.Now()
-			depth, err := bn.GetDepth(100, pair)
+			depth, err := binance.GetDepth(100, pair)
 			if err != nil {
 				log.Println("Error fetching depth")
 				return
@@ -160,12 +155,9 @@ func handleMessage(messageSerialized string) {
 			return
 		}
 
-		if bn == nil {
-			bn = binance.New(http.DefaultClient, "", "")
-		}
 		go func() {
 			tStart := time.Now()
-			tickers, err := bn.GetAllTickers()
+			tickers, err := binance.GetAllTickers()
 			if err != nil {
 				log.Println("Error fetching tickers")
 				return

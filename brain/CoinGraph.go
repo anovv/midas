@@ -2,20 +2,17 @@ package brain
 
 import (
 	"midas/apis/binance"
-	"net/http"
 	"log"
-	//"strconv"
-	. "midas/common"
+	"midas/common"
 	"strconv"
 	"strings"
 	"math"
 	"time"
 	"fmt"
-	//"math/rand"
 )
 
 type Vertex struct {
-	Coin Coin
+	Coin common.Coin
 }
 
 type Edge struct {
@@ -26,23 +23,19 @@ type Edge struct {
 
 type Weight struct {
 	Value float64
-	DepthRecords *DepthRecords
+	DepthRecords *common.DepthRecords
 }
 
 func (w Weight) String() string {
-	return FloatToString(w.Value)
+	return common.FloatToString(w.Value)
 }
 
-var bn *binance.Binance
 var graph map[Vertex][]Edge
 var distances map[Vertex]float64
 var parents map[Vertex]*Vertex // TODO is this needed
 
 func InitCoinGraph() {
-	if bn == nil {
-		bn = binance.New(http.DefaultClient, "", "")
-	}
-	pairs, err := bn.GetAllPairs()
+	pairs, err := binance.GetAllPairs()
 	if err != nil {
 		return
 	}

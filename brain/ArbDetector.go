@@ -4,7 +4,6 @@ import (
 	"midas/apis/binance"
 	"midas/common"
 	"midas/common/arb"
-	"net/http"
 	"sort"
 	"strconv"
 	"time"
@@ -20,7 +19,6 @@ const (
 	BINANCE_BNB_FEE = 0.00075
 )
 
-var api = binance.New(http.DefaultClient, "", "")
 var triangles = make(map[string]*arb.Triangle)
 var pairs = make(map[string]*common.CoinPair)
 
@@ -39,7 +37,7 @@ func RunArbDetector() {
 func initArbDetector() {
 	log.Println("Initializing arb detector...")
 	logging.CreateTableIfNotExistsMySQL()
-	_pairs, err := api.GetAllPairs()
+	_pairs, err := binance.GetAllPairs()
 	if err != nil {
 		panic("Can't fetch list of pairs")
 	}
@@ -67,6 +65,7 @@ func initArbDetector() {
 
 	delta := time.Since(tStart)
 	log.Println("Initializing finished in " + delta.String())
+	// TODO print number of triangles
 	logging.LogLineToFile("Launched at " + time.Now().String())
 }
 
@@ -84,7 +83,6 @@ func runReportArb() {
 				// If arb state was not updated by detector routine for more than ARB_REPORT_UPDATE_THRESHOLD_MICROS
 				// we consider arb opportunity is gone
 				if time.Since(arbState.LastUpdateTs) > time.Duration(brainConfig.ARB_REPORT_UPDATE_THRESHOLD_MICROS) * time.Microsecond {
-					printArbState(arbState)
 					logging.RecordArbStateMySQL(arbState)
 					// TODO remove arbState from map
 					arbState.Reported = true
@@ -229,17 +227,4 @@ func findPairForCoins(coinA common.Coin, coinB common.Coin, pairs ...*common.Coi
 	}
 
 	panic("Couldn't find coin pair")
-}
-
-func printArbState(arbState *arb.State) {
-	log.Println("Found arb opportunity: " +
-		arbState.Triangle.CoinA.CoinSymbol + "->" +
-		arbState.Triangle.CoinB.CoinSymbol + "->" +
-		arbState.Triangle.CoinC.CoinSymbol + "->" +
-		arbState.Triangle.CoinA.CoinSymbol +
-		" Before: " + common.FloatToString(arbState.QtyBefore) + arbState.Triangle.CoinA.CoinSymbol +
-		" After: " + common.FloatToString(arbState.QtyAfter) + arbState.Triangle.CoinA.CoinSymbol +
-		" Relative Profit: " + common.FloatToString(arbState.ProfitRelative * 100.0) + "%" +
-		" Lasted for " + arbState.LastUpdateTs.Sub(arbState.StartTs).String() +
-		" Started at " + arbState.StartTs.String())
 }

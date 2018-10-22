@@ -17,6 +17,8 @@ type BrainConfig struct {
 	BASE_PORT int `json:"base_port"`
 	FETCH_DELAYS_MICROS map[string]map[string]int `json:"fetch_delays_micros"` // delays per exchange per command
 	MYSQL_PASSWORD string `json:"mysql_password"`
+	API_KEY string `json:"api_key"`
+	API_SECRET string `json:"api_secret"`
 }
 
 type EyeConfig struct {
@@ -25,6 +27,7 @@ type EyeConfig struct {
 }
 
 func ReadBrainConfig() *BrainConfig {
+	// TODO make singleton
 	jsonConfigFile, err := os.Open(BRAIN_CONFIG_PATH)
 	if err != nil {
 		panic("Unable to open brain config. Make sure there is brain_config.json next to brain_exec binary: " + err.Error())

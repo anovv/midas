@@ -6,7 +6,6 @@ import (
 	"sync"
 	"strconv"
 	"midas/apis/binance"
-	"net/http"
 	"time"
 	"log"
 	"midas/configuration"

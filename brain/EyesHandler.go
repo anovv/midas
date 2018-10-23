@@ -247,15 +247,13 @@ func handleMessage(messageSerialized string, eyeId int) {
 			log.Println("Frame dropped")
 			return
 		}
-		//diff := time.Since(lastUpdTs)
-		//log.Println("Upd time: " + diff.String())
+		diff := time.Since(lastUpdTs)
+		log.Println("Upd time: " + diff.String())
 		lastUpdTs = time.Now()
 		lastReqSentTs = message.TraceInfo.BrainReqSentTs
 
 		tickersMapSerialized := args[common.TICKERS_MAP_SERIALIZED]
 		tickersMap = common.DeserializeTickersMap(tickersMapSerialized)
-
-		log.Println("Received depth update: " + tickersMapSerialized)
 
 	case common.CONF_OUT:
 		log.Println("Eye " + strconv.Itoa(eyeId) + " confirmed out")

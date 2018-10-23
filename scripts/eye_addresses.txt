@@ -1,2 +1,0 @@
-ec2-52-197-169-250.ap-northeast-1.compute.amazonaws.com
-ec2-13-114-84-55.ap-northeast-1.compute.amazonaws.com

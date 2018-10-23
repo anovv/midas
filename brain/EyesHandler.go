@@ -51,14 +51,8 @@ var pairsPerExchange = map[string][]string{
 	common.BINANCE: {"ETHBTC"},
 }
 
-var lastUpd = time.Now()
-
-var avgFetchTimePerExchange = map[string]*AvgFetchTimeStat{
-	common.BINANCE: {
-		0,
-		0,
-	},
-}
+var lastUpdTs = time.Now()
+var lastReqSentTs = time.Now()
 
 // TODO merge depth and ticker updates in a single function
 func ScheduleDepthUpdates() {
@@ -74,6 +68,9 @@ func ScheduleDepthUpdates() {
 							map[string]string{
 								common.CURRENCY_PAIR: pair,
 								common.EXCHANGE: exchange,
+							},
+							&common.TraceInfo{
+								BrainReqSentTs: time.Now(),
 							},
 						}
 						time.Sleep(time.Duration(delay) * time.Microsecond)
@@ -100,6 +97,9 @@ func ScheduleTickerUpdates() {
 						map[string]string{
 							common.EXCHANGE: exchange,
 						},
+						&common.TraceInfo{
+							BrainReqSentTs: time.Now(),
+						},
 					}
 					time.Sleep(time.Duration(delay) * time.Microsecond)
 					*eyeHandle.ChannelIn<-message.SerializeMessage()
@@ -111,22 +111,10 @@ func ScheduleTickerUpdates() {
 
 func getDelayMicroSeconds(command string, exchange string) int {
 	switch command {
-	case common.DEPTH_REQ:
-		// TODO this is most likely wrong!
-		numEyes := len(eyes)
-		numPairs := len(pairsPerExchange[exchange])
-		if numEyes <= numPairs {
-			return brainConfig.FETCH_DELAYS_MICROS[exchange][command]
-		}
-
-		avgFetchTime := avgFetchTimePerExchange[exchange].AvgFetchTimeMicroSeconds
-
-		return brainConfig.FETCH_DELAYS_MICROS[exchange][command] + int(avgFetchTime*numPairs/numEyes)
-
 	case common.TICKERS_MAP_REQ:
 		numEyes := len(eyes)
 		return int(brainConfig.FETCH_DELAYS_MICROS[exchange][command]/numEyes)
-
+	// TODO handle depth
 	default:
 		return 0
 	}
@@ -184,6 +172,7 @@ func handleNewConnectionRequest(requestReceiver *zmq4.Socket, requestSerialized 
 			common.PORT_IN: strconv.Itoa(portIn),
 			common.PORT_OUT: strconv.Itoa(portOut),
 			},
+		nil,
 	}
 	requestReceiver.Send(message.SerializeMessage(), 0)
 	lastConnectedEyeId = eyeId
@@ -194,6 +183,7 @@ func CleanupEyesHandler() {
 		eyeInterface := eyes[eyeId]
 		message := common.Message{
 			common.KILL_EYE,
+			nil,
 			nil,
 		}
 		*eyeInterface.ChannelIn<-message.SerializeMessage()
@@ -250,17 +240,20 @@ func handleMessage(messageSerialized string, eyeId int) {
 		depth := common.DeserializeDepth(depthSerialized)
 		dj, _ := json.Marshal(depth)
 		log.Println("Received depth update: " + string(dj))
-		updateAvgFetchTime(message)
 
 	case common.TICKERS_MAP_RESP:
-		diff := time.Since(lastUpd)
+		// TODO generalize to all
+		if lastReqSentTs.After(message.TraceInfo.BrainReqSentTs) {
+			log.Println("Frame dropped")
+			return
+		}
+		diff := time.Since(lastUpdTs)
 		log.Println("Upd time: " + diff.String())
-		lastUpd = time.Now()
+		lastUpdTs = time.Now()
+		lastReqSentTs = message.TraceInfo.BrainReqSentTs
+
 		tickersMapSerialized := args[common.TICKERS_MAP_SERIALIZED]
 		tickersMap = common.DeserializeTickersMap(tickersMapSerialized)
-		updateAvgFetchTime(message)
-
-
 
 	case common.CONF_OUT:
 		log.Println("Eye " + strconv.Itoa(eyeId) + " confirmed out")
@@ -283,20 +276,4 @@ func handleMessage(messageSerialized string, eyeId int) {
 			log.Println("Eye " + strconv.Itoa(eyeId) + " is ready")
 		}
 	}
-}
-
-func updateAvgFetchTime(message *common.Message) {
-	// TODO decide if it's needed at all
-	fetchTimeMicroSeconds, _ := strconv.Atoi(message.Args[common.FETCH_TIME_MICROSECONDS])
-	exchange := message.Args[common.EXCHANGE]
-	// TODO use only recent samples to update avg fetch time
-	// TODO make atomic/sync
-	avgFetchTimeStat := avgFetchTimePerExchange[exchange]
-
-	//newAvg := int((avgFetchTimeStat.AvgFetchTimeMicroSeconds * avgFetchTimeStat.NumSamples + fetchTimeMicroSeconds)/(avgFetchTimeStat.NumSamples + 1))
-	newAvg := int((avgFetchTimeStat.AvgFetchTimeMicroSeconds + fetchTimeMicroSeconds)/2)
-	avgFetchTimeStat.AvgFetchTimeMicroSeconds = newAvg
-	avgFetchTimeStat.NumSamples = avgFetchTimeStat.NumSamples + 1
-
-	//log.Println("Avg fetch time: " + strconv.Itoa(newAvg))
 }

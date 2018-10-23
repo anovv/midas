@@ -2,11 +2,19 @@ package common
 
 import (
 	"encoding/json"
+	"time"
 )
 
 type Message struct {
 	Command string
 	Args map[string]string
+	TraceInfo *TraceInfo
+}
+
+type TraceInfo struct {
+	BrainReqSentTs time.Time
+	EyeReqSentTs time.Time
+	EyeRespReceivedTs time.Time
 }
 
 // Commands
@@ -30,7 +38,6 @@ const (
 	EXCHANGE                = "exchange"
 	DEPTH_SERIALIZED        = "depth_serialized"
 	TICKERS_MAP_SERIALIZED        = "tickers_map_serialized"
-	FETCH_TIME_MICROSECONDS = "fetch_time_microseconds"
 )
 
 func (message *Message) SerializeMessage() string {

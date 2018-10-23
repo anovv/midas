@@ -43,6 +43,7 @@ func requestSetupMetadata() {
 	message := common.Message{
 		common.CONNECT_EYE,
 		nil,
+		nil,
 	}
 	socket.Send(message.SerializeMessage(), 0)
 	resp, _ := socket.Recv(0)
@@ -71,6 +72,7 @@ func setupOutSocket() *zmq4.Socket {
 	message := common.Message{
 		common.CONF_OUT,
 		nil,
+		nil,
 	}
 	socketIn.Send(message.SerializeMessage(), 0)
 	setupWg.Add(1)
@@ -91,6 +93,7 @@ func setupInSocket() *zmq4.Socket {
 	in.Connect(address)
 	message := common.Message{
 		common.CONF_IN,
+		nil,
 		nil,
 	}
 	in.Send(message.SerializeMessage(), 0)
@@ -128,17 +131,21 @@ func handleMessage(messageSerialized string) {
 				log.Println("Error fetching depth")
 				return
 			}
-			delta := time.Since(tStart) // nanosec
-			fetchTimeMicroSeconds := strconv.Itoa(int(delta/1000)) // microsec
-			log.Println("Depth fetched in " + fetchTimeMicroSeconds + " microseconds")
+			tEnd := time.Now()
+			delta := tEnd.Sub(tStart)
+			log.Println("Depth fetched in " + delta.String())
 
 			response := common.Message{
 				common.DEPTH_RESP,
 				map[string]string{
 					common.DEPTH_SERIALIZED:        depth.Serialize(),
-					common.FETCH_TIME_MICROSECONDS: fetchTimeMicroSeconds,
 					common.CURRENCY_PAIR:           pair,
 					common.EXCHANGE:                exchange,
+				},
+				&common.TraceInfo{
+					BrainReqSentTs: message.TraceInfo.BrainReqSentTs,
+					EyeReqSentTs: tStart,
+					EyeRespReceivedTs: tEnd,
 				},
 			}
 
@@ -161,16 +168,20 @@ func handleMessage(messageSerialized string) {
 				log.Println("Error fetching tickers")
 				return
 			}
-			delta := time.Since(tStart) // nanosec
-			fetchTimeMicroSeconds := strconv.Itoa(int(delta/1000)) // microsec
-			log.Println("Tickers fetched in " + fetchTimeMicroSeconds + " microseconds")
+			tEnd := time.Now()
+			delta := tEnd.Sub(tStart) // nanosec
+			log.Println("Tickers fetched in " + delta.String())
 
 			response := common.Message{
 				common.TICKERS_MAP_RESP,
 				map[string]string{
 					common.TICKERS_MAP_SERIALIZED:	tickers.Serialize(),
-					common.FETCH_TIME_MICROSECONDS:	fetchTimeMicroSeconds,
 					common.EXCHANGE:				exchange,
+				},
+				&common.TraceInfo{
+					BrainReqSentTs: message.TraceInfo.BrainReqSentTs,
+					EyeReqSentTs: tStart,
+					EyeRespReceivedTs: tEnd,
 				},
 			}
 

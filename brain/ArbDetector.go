@@ -83,10 +83,8 @@ func runReportArb() {
 				// If arb state was not updated by detector routine for more than ARB_REPORT_UPDATE_THRESHOLD_MICROS
 				// we consider arb opportunity is gone
 				if time.Since(arbState.LastUpdateTs) > time.Duration(brainConfig.ARB_REPORT_UPDATE_THRESHOLD_MICROS) * time.Microsecond {
-					// Async logging
-					go func() {
-						logging.RecordArbStateMySQL(arbState)
-					} ()
+					// TODO async logging
+					logging.RecordArbStateMySQL(arbState)
 					// TODO remove arbState from map
 					arbState.Reported = true
 				}

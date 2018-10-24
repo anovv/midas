@@ -22,9 +22,7 @@ const (
 var triangles = make(map[string]*arb.Triangle)
 var pairs = make(map[string]*common.CoinPair)
 
-// TODO use syncMap?
-var arbStates = make(map[string]*arb.State)
-var arbStatesMutex = &sync.RWMutex{}
+var arbStates = sync.Map{}
 
 var brainConfig = configuration.ReadBrainConfig()
 
@@ -74,17 +72,17 @@ func runReportArb() {
 	go func() {
 		log.Println("Checking existing arbs...")
 		for {
-			arbStatesMutex.Lock()
-			for key, arbState := range arbStates {
+			arbStates.Range(func(k, v interface{}) bool {
+				arbState := v.(*arb.State)
 				// If arb state was not updated by detector routine for more than ARB_REPORT_UPDATE_THRESHOLD_MICROS
 				// we consider arb opportunity is gone
 				if time.Since(arbState.LastUpdateTs) > time.Duration(brainConfig.ARB_REPORT_UPDATE_THRESHOLD_MICROS) * time.Microsecond {
 					// TODO async logging
 					logging.RecordArbStateMySQL(arbState)
-					delete(arbStates, key)
+					arbStates.Delete(k)
 				}
-			}
-			arbStatesMutex.Unlock()
+				return true
+			})
 		}
 	} ()
 }
@@ -110,24 +108,21 @@ func runDetectArbBLOCKING() {
 
 			if newQtyA > qtyA {
 				arbStateKey := triangle.Key + "_" + common.FloatToString(profit)
+				now := time.Now()
 
-				if arbStates[arbStateKey] == nil {
-					now := time.Now()
-					arbStatesMutex.RLock()
-					arbStates[arbStateKey] = &arb.State{
-						QtyBefore: qtyA,
-						QtyAfter: newQtyA,
-						ProfitRelative: profit,
-						Triangle: triangle,
-						StartTs: now,
-						LastUpdateTs: now,
-						NumFrames: 1,
-					}
-				} else {
-					arbStatesMutex.RLock()
-					arbStates[arbStateKey].LastUpdateTs = time.Now()
+				res, loaded := arbStates.LoadOrStore(arbStateKey, &arb.State{
+					QtyBefore: qtyA,
+					QtyAfter: newQtyA,
+					ProfitRelative: profit,
+					Triangle: triangle,
+					StartTs: now,
+					LastUpdateTs: now,
+					NumFrames: 1,
+				})
+				if loaded {
+					arbState := res.(*arb.State)
+					arbState.LastUpdateTs = time.Now()
 				}
-				arbStatesMutex.RUnlock()
 			}
 		}
 	}
@@ -226,11 +221,9 @@ func findPairForCoins(coinA common.Coin, coinB common.Coin, pairs ...*common.Coi
 }
 
 func updateFrameCounters() {
-	for {
-		arbStatesMutex.Lock()
-		for _, arbState := range arbStates {
-			arbState.NumFrames++
-		}
-		arbStatesMutex.Unlock()
-	}
+	arbStates.Range(func(k, v interface{}) bool {
+		arbState := v.(*arb.State)
+		arbState.NumFrames++
+		return true
+	})
 }

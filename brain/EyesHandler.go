@@ -113,7 +113,9 @@ func getDelayMicroSeconds(command string, exchange string) int {
 	switch command {
 	case common.TICKERS_MAP_REQ:
 		numEyes := len(eyes)
-		return int(brainConfig.FETCH_DELAYS_MICROS[exchange][command]/numEyes)
+		delay := int(brainConfig.FETCH_DELAYS_MICROS[exchange][command]/numEyes)
+		log.Println("Delay: " + strconv.Itoa(delay) + "micros")
+		return delay
 	// TODO handle depth
 	default:
 		return 0
@@ -244,11 +246,11 @@ func handleMessage(messageSerialized string, eyeId int) {
 	case common.TICKERS_MAP_RESP:
 		// TODO generalize to all
 		if lastReqSentTs.After(message.TraceInfo.BrainReqSentTs) {
-			log.Println("Frame dropped")
+			//log.Println("Frame dropped")
 			return
 		}
-		diff := time.Since(lastUpdTs)
-		log.Println("Upd time: " + diff.String())
+		//diff := time.Since(lastUpdTs)
+		//log.Println("Upd time: " + diff.String())
 		lastUpdTs = time.Now()
 		lastReqSentTs = message.TraceInfo.BrainReqSentTs
 

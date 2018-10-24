@@ -6,6 +6,12 @@ EYE_ADDRESSES_FILE_PATH="eye_addresses.txt"
 PEM_KEY_PATH="/Users/anov/Desktop/aws_keys/TokyoTest.pem"
 USER="ubuntu"
 
+offset=$1
+if [ -z $offset ]; then
+	offset=100000
+fi
+
+counter=0
 addresses=()
 while read -r line
 do
@@ -15,7 +21,12 @@ done < $EYE_ADDRESSES_FILE_PATH
 echo "Initiated restart for eyes:"
 for each in ${addresses[@]}
 do
-	echo $each
+	if ((counter < offset)); then
+		echo $each
+		((counter++))
+	else
+		break
+	fi
 done
 
 restart_eye () {
@@ -24,8 +35,14 @@ restart_eye () {
 	echo "Finished"
 }
 
+counter=0
 for addr in ${addresses[@]}
 do
-        restart_eye $addr
+	if ((counter < offset)); then
+        	restart_eye $addr
+		((counter++))
+	else
+		break
+	fi
 done
 echo "All done"

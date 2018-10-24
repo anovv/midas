@@ -21,6 +21,7 @@ const (
 	FIELD_COIN_C = "coin_c"
 	FIELD_STARTED_AT = "started_at"
 	FIELD_FINISHED_AT = "finished_at"
+	FIELD_LASTED_FRAMES = "lasted_frames"
 )
 
 const (
@@ -40,6 +41,7 @@ const (
 		FIELD_COIN_C + " VARCHAR(64)," +
 		FIELD_STARTED_AT + " TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP," +
 		FIELD_FINISHED_AT + " TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP," +
+		FIELD_LASTED_FRAMES + " INT(10)," +
 		"PRIMARY KEY (id)" +
 		");"
 	INSERT_ARB_STATE_QUERY = "INSERT INTO " + TABLE_NAME + "(" +
@@ -52,8 +54,9 @@ const (
 		FIELD_COIN_B + ","  +
 		FIELD_COIN_C + ","  +
 		FIELD_STARTED_AT + ","  +
-		FIELD_FINISHED_AT +
-		") VALUES(?,?,?,?,?,?,?,?,?,?)"
+		FIELD_FINISHED_AT + "," +
+		FIELD_LASTED_FRAMES +
+		") VALUES(?,?,?,?,?,?,?,?,?,?,?)"
 
 	TIMESTAMP_FORMAT = "2006-01-02 15:04:05"
 )
@@ -90,6 +93,7 @@ func RecordArbStateMySQL(state *arb.State) {
 		state.Triangle.CoinC.CoinSymbol,
 		state.StartTs.Format(TIMESTAMP_FORMAT),
 		state.LastUpdateTs.Format(TIMESTAMP_FORMAT),
+		state.NumFrames,
 	)
 	checkErr(err)
 }

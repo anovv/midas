@@ -12,4 +12,5 @@ type State struct {
 	StartTs time.Time
 	LastUpdateTs time.Time
 	Reported bool
+	NumFrames int
 }

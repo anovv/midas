@@ -127,10 +127,12 @@ func runDetectArbBLOCKING() {
 						StartTs: now,
 						LastUpdateTs: now,
 						Reported: false,
+						NumFrames: 1,
 					}
 				} else {
 					arbStatesMutex.RLock()
 					arbStates[arbStateKey].LastUpdateTs = time.Now()
+					arbStates[arbStateKey].NumFrames++
 				}
 				arbStatesMutex.RUnlock()
 			}

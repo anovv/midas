@@ -11,6 +11,5 @@ type State struct {
 	Triangle *Triangle
 	StartTs time.Time
 	LastUpdateTs time.Time
-	Reported bool
 	NumFrames int
 }

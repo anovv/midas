@@ -75,18 +75,13 @@ func runReportArb() {
 		log.Println("Checking existing arbs...")
 		for {
 			arbStatesMutex.Lock()
-			for _, arbState := range arbStates {
-				if arbState.Reported {
-					continue
-				}
-
+			for key, arbState := range arbStates {
 				// If arb state was not updated by detector routine for more than ARB_REPORT_UPDATE_THRESHOLD_MICROS
 				// we consider arb opportunity is gone
 				if time.Since(arbState.LastUpdateTs) > time.Duration(brainConfig.ARB_REPORT_UPDATE_THRESHOLD_MICROS) * time.Microsecond {
 					// TODO async logging
 					logging.RecordArbStateMySQL(arbState)
-					// TODO remove arbState from map
-					arbState.Reported = true
+					delete(arbStates, key)
 				}
 			}
 			arbStatesMutex.Unlock()
@@ -126,13 +121,11 @@ func runDetectArbBLOCKING() {
 						Triangle: triangle,
 						StartTs: now,
 						LastUpdateTs: now,
-						Reported: false,
 						NumFrames: 1,
 					}
 				} else {
 					arbStatesMutex.RLock()
 					arbStates[arbStateKey].LastUpdateTs = time.Now()
-					arbStates[arbStateKey].NumFrames++
 				}
 				arbStatesMutex.RUnlock()
 			}
@@ -230,4 +223,14 @@ func findPairForCoins(coinA common.Coin, coinB common.Coin, pairs ...*common.Coi
 	}
 
 	panic("Couldn't find coin pair")
+}
+
+func updateFrameCounters() {
+	for {
+		arbStatesMutex.Lock()
+		for _, arbState := range arbStates {
+			arbState.NumFrames++
+		}
+		arbStatesMutex.Unlock()
+	}
 }

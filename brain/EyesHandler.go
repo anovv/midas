@@ -263,6 +263,7 @@ func handleMessage(messageSerialized string, eyeId int) {
 			return
 		}
 
+		updateFrameCounters()
 		tickersMapSerialized := args[common.TICKERS_MAP_SERIALIZED]
 		tickersMap = common.DeserializeTickersMap(tickersMapSerialized)
 

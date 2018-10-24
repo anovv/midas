@@ -9,6 +9,7 @@ type Message struct {
 	Command string
 	Args map[string]string
 	TraceInfo *TraceInfo
+	Error error
 }
 
 type TraceInfo struct {

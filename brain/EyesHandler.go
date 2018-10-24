@@ -72,6 +72,7 @@ func ScheduleDepthUpdates() {
 							&common.TraceInfo{
 								BrainReqSentTs: time.Now(),
 							},
+							nil,
 						}
 						time.Sleep(time.Duration(delay) * time.Microsecond)
 						*eyeHandle.ChannelIn<-message.SerializeMessage()
@@ -100,6 +101,7 @@ func ScheduleTickerUpdates() {
 						&common.TraceInfo{
 							BrainReqSentTs: time.Now(),
 						},
+						nil,
 					}
 					time.Sleep(time.Duration(delay) * time.Microsecond)
 					*eyeHandle.ChannelIn<-message.SerializeMessage()
@@ -175,6 +177,7 @@ func handleNewConnectionRequest(requestReceiver *zmq4.Socket, requestSerialized 
 			common.PORT_OUT: strconv.Itoa(portOut),
 			},
 		nil,
+		nil,
 	}
 	requestReceiver.Send(message.SerializeMessage(), 0)
 	lastConnectedEyeId = eyeId
@@ -185,6 +188,7 @@ func CleanupEyesHandler() {
 		eyeInterface := eyes[eyeId]
 		message := common.Message{
 			common.KILL_EYE,
+			nil,
 			nil,
 			nil,
 		}
@@ -236,6 +240,7 @@ func handleMessage(messageSerialized string, eyeId int) {
 	message := common.DeserializeMessage(messageSerialized)
 	command := message.Command
 	args := message.Args
+	err := message.Error
 	switch command {
 	case common.DEPTH_RESP:
 		depthSerialized := args[common.DEPTH_SERIALIZED]
@@ -253,6 +258,10 @@ func handleMessage(messageSerialized string, eyeId int) {
 		log.Println("Upd time: " + diff.String())
 		lastUpdTs = time.Now()
 		lastReqSentTs = message.TraceInfo.BrainReqSentTs
+		if err != nil {
+			log.Println("Error from eye " + strconv.Itoa(eyeId) + ": " + err.Error())
+			return
+		}
 
 		tickersMapSerialized := args[common.TICKERS_MAP_SERIALIZED]
 		tickersMap = common.DeserializeTickersMap(tickersMapSerialized)

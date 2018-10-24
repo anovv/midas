@@ -44,6 +44,7 @@ func requestSetupMetadata() {
 		common.CONNECT_EYE,
 		nil,
 		nil,
+		nil,
 	}
 	socket.Send(message.SerializeMessage(), 0)
 	resp, _ := socket.Recv(0)
@@ -73,6 +74,7 @@ func setupOutSocket() *zmq4.Socket {
 		common.CONF_OUT,
 		nil,
 		nil,
+		nil,
 	}
 	socketIn.Send(message.SerializeMessage(), 0)
 	setupWg.Add(1)
@@ -93,6 +95,7 @@ func setupInSocket() *zmq4.Socket {
 	in.Connect(address)
 	message := common.Message{
 		common.CONF_IN,
+		nil,
 		nil,
 		nil,
 	}
@@ -127,9 +130,12 @@ func handleMessage(messageSerialized string) {
 		go func() {
 			tStart := time.Now()
 			depth, err := binance.GetDepth(100, pair)
+			var serialized string
 			if err != nil {
 				log.Println("Error fetching depth")
-				return
+				serialized = ""
+			} else {
+				serialized = depth.Serialize()
 			}
 			tEnd := time.Now()
 			delta := tEnd.Sub(tStart)
@@ -138,7 +144,7 @@ func handleMessage(messageSerialized string) {
 			response := common.Message{
 				common.DEPTH_RESP,
 				map[string]string{
-					common.DEPTH_SERIALIZED:        depth.Serialize(),
+					common.DEPTH_SERIALIZED:        serialized,
 					common.CURRENCY_PAIR:           pair,
 					common.EXCHANGE:                exchange,
 				},
@@ -147,6 +153,7 @@ func handleMessage(messageSerialized string) {
 					EyeReqSentTs: tStart,
 					EyeRespReceivedTs: tEnd,
 				},
+				err,
 			}
 
 			channelIn<-response.SerializeMessage()
@@ -164,9 +171,12 @@ func handleMessage(messageSerialized string) {
 		go func() {
 			tStart := time.Now()
 			tickers, err := binance.GetAllTickers()
+			var serialized string
 			if err != nil {
 				log.Println("Error fetching tickers")
-				return
+				serialized = ""
+			} else {
+				serialized = tickers.Serialize()
 			}
 			tEnd := time.Now()
 			delta := tEnd.Sub(tStart) // nanosec
@@ -175,7 +185,7 @@ func handleMessage(messageSerialized string) {
 			response := common.Message{
 				common.TICKERS_MAP_RESP,
 				map[string]string{
-					common.TICKERS_MAP_SERIALIZED:	tickers.Serialize(),
+					common.TICKERS_MAP_SERIALIZED:	serialized,
 					common.EXCHANGE:				exchange,
 				},
 				&common.TraceInfo{
@@ -183,6 +193,7 @@ func handleMessage(messageSerialized string) {
 					EyeReqSentTs: tStart,
 					EyeRespReceivedTs: tEnd,
 				},
+				err,
 			}
 
 			channelIn<-response.SerializeMessage()

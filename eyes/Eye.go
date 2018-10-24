@@ -44,7 +44,7 @@ func requestSetupMetadata() {
 		common.CONNECT_EYE,
 		nil,
 		nil,
-		nil,
+		"",
 	}
 	socket.Send(message.SerializeMessage(), 0)
 	resp, _ := socket.Recv(0)
@@ -74,7 +74,7 @@ func setupOutSocket() *zmq4.Socket {
 		common.CONF_OUT,
 		nil,
 		nil,
-		nil,
+		"",
 	}
 	socketIn.Send(message.SerializeMessage(), 0)
 	setupWg.Add(1)
@@ -97,7 +97,7 @@ func setupInSocket() *zmq4.Socket {
 		common.CONF_IN,
 		nil,
 		nil,
-		nil,
+		"",
 	}
 	in.Send(message.SerializeMessage(), 0)
 	go func(){
@@ -131,11 +131,14 @@ func handleMessage(messageSerialized string) {
 			tStart := time.Now()
 			depth, err := binance.GetDepth(100, pair)
 			var serialized string
+			var errMsg string
 			if err != nil {
 				log.Println("Error fetching depth")
 				serialized = ""
+				errMsg = err.Error()
 			} else {
 				serialized = depth.Serialize()
+				errMsg = ""
 			}
 			tEnd := time.Now()
 			delta := tEnd.Sub(tStart)
@@ -153,7 +156,7 @@ func handleMessage(messageSerialized string) {
 					EyeReqSentTs: tStart,
 					EyeRespReceivedTs: tEnd,
 				},
-				err,
+				errMsg,
 			}
 
 			channelIn<-response.SerializeMessage()
@@ -172,11 +175,14 @@ func handleMessage(messageSerialized string) {
 			tStart := time.Now()
 			tickers, err := binance.GetAllTickers()
 			var serialized string
+			var errMsg string
 			if err != nil {
 				log.Println("Error fetching tickers")
 				serialized = ""
+				errMsg = err.Error()
 			} else {
 				serialized = tickers.Serialize()
+				errMsg = ""
 			}
 			tEnd := time.Now()
 			delta := tEnd.Sub(tStart) // nanosec
@@ -193,7 +199,7 @@ func handleMessage(messageSerialized string) {
 					EyeReqSentTs: tStart,
 					EyeRespReceivedTs: tEnd,
 				},
-				err,
+				errMsg,
 			}
 
 			channelIn<-response.SerializeMessage()

@@ -77,9 +77,9 @@ func runReportArb() {
 				// If arb state was not updated by detector routine for more than ARB_REPORT_UPDATE_THRESHOLD_MICROS
 				// we consider arb opportunity is gone
 				if time.Since(arbState.LastUpdateTs) > time.Duration(brainConfig.ARB_REPORT_UPDATE_THRESHOLD_MICROS) * time.Microsecond {
+					arbStates.Delete(k)
 					// TODO async logging
 					logging.RecordArbStateMySQL(arbState)
-					arbStates.Delete(k)
 				}
 				return true
 			})
@@ -117,7 +117,7 @@ func runDetectArbBLOCKING() {
 					Triangle: triangle,
 					StartTs: now,
 					LastUpdateTs: now,
-					NumFrames: 1,
+					FrameUpdateTsQueue: make(chan time.Time),
 				})
 				if loaded {
 					arbState := res.(*arb.State)
@@ -221,9 +221,10 @@ func findPairForCoins(coinA common.Coin, coinB common.Coin, pairs ...*common.Coi
 }
 
 func updateFrameCounters() {
+	ts := time.Now()
 	arbStates.Range(func(k, v interface{}) bool {
 		arbState := v.(*arb.State)
-		arbState.NumFrames++
+		arbState.FrameUpdateTsQueue <- ts
 		return true
 	})
 }

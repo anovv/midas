@@ -93,7 +93,7 @@ func RecordArbStateMySQL(state *arb.State) {
 		state.Triangle.CoinC.CoinSymbol,
 		state.StartTs.Format(TIMESTAMP_FORMAT),
 		state.LastUpdateTs.Format(TIMESTAMP_FORMAT),
-		state.NumFrames,
+		state.GetFrameUpdateCount(),
 	)
 	checkErr(err)
 }

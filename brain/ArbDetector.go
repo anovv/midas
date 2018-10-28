@@ -117,7 +117,7 @@ func runDetectArbBLOCKING() {
 					Triangle: triangle,
 					StartTs: now,
 					LastUpdateTs: now,
-					FrameUpdateTsQueue: make(chan time.Time),
+					FrameUpdateTsQueue: make([]time.Time, 0),
 				})
 				if loaded {
 					arbState := res.(*arb.State)
@@ -224,7 +224,7 @@ func updateFrameCounters() {
 	ts := time.Now()
 	arbStates.Range(func(k, v interface{}) bool {
 		arbState := v.(*arb.State)
-		arbState.FrameUpdateTsQueue <- ts
+		arbState.FrameUpdateTsQueue = append(arbState.FrameUpdateTsQueue, ts)
 		return true
 	})
 }

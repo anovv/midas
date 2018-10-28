@@ -11,12 +11,12 @@ type State struct {
 	Triangle *Triangle
 	StartTs time.Time
 	LastUpdateTs time.Time
-	FrameUpdateTsQueue chan time.Time // holds timestamps of frame updates
+	FrameUpdateTsQueue []time.Time // holds timestamps of frame updates
 }
 
 func (s *State) GetFrameUpdateCount() int {
 	count := 0
-	for ts := range s.FrameUpdateTsQueue {
+	for _, ts := range s.FrameUpdateTsQueue {
 		if ts.Before(s.LastUpdateTs) {
 			count++
 		}

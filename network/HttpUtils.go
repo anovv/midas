@@ -13,6 +13,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"log"
 )
 
 var apiKey = configuration.ReadBrainConfig().API_KEY
@@ -30,11 +31,13 @@ func NewHttpRequest(
 	}
 
 	if useSignature {
-		reqData.Set("recvWindow", "6000000")
+		reqData.Set("recvWindow", "60000")
 		tonce := strconv.FormatInt(time.Now().UnixNano(), 10)[0:13]
 		reqData.Set("timestamp", tonce)
 		payload := reqData.Encode()
 		signature, err := getParamHmacSHA256Sign(apiSecret, payload)
+		log.Println("payload: " + payload)
+		log.Println("sig: " + signature)
 		if err != nil {
 			return nil, err
 		}
@@ -45,7 +48,7 @@ func NewHttpRequest(
 
 	//req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	// TODO is this needed?
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 5.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/31.0.1650.63 Safari/537.36")
+	//req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 5.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/31.0.1650.63 Safari/537.36")
 
 	if useApiKey {
 		req.Header.Add("X-MBX-APIKEY", apiKey)

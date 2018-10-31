@@ -14,11 +14,13 @@ import (
 const (
 	API_BASE_URL = "https://api.binance.com/"
 	API_V1       = API_BASE_URL + "api/v1/"
+	API_V3       = API_BASE_URL + "api/v3/"
 
 	TICKER_URI             = "ticker/24hr?symbol=%s"
 	TICKERS_URI            = "ticker/allBookTickers"
 	DEPTH_URI              = "depth?symbol=%s&limit=%d"
 	USER_DATA_STREAM_URI   = "userDataStream"
+	ACCOUNT_URI 		   = "account"
 
 	MIN_DEPTH = 5
 	MAX_DEPTH = 100
@@ -194,7 +196,7 @@ func PingUserDataStream(listenKey *string) bool {
 	_, err := network.NewHttpRequest(
 		"PUT",
 		uri,
-		nil,
+		reqData,
 		true,
 		false)
 	if err != nil {
@@ -212,7 +214,7 @@ func CloseUserDataStream(listenKey *string) bool {
 	_, err := network.NewHttpRequest(
 		"DELETE",
 		uri,
-		nil,
+		reqData,
 		true,
 		false)
 	if err != nil {
@@ -221,4 +223,57 @@ func CloseUserDataStream(listenKey *string) bool {
 	}
 
 	return true
+}
+
+func GetAccount() (*common.Account, error) {
+	accountUri := API_V3 + ACCOUNT_URI
+	res, err := network.NewHttpRequest(
+		"GET",
+		accountUri,
+		nil,
+		true,
+		true)
+	if err != nil {
+		log.Println("GetAccount error:", err)
+		return nil, err
+	}
+
+	rawAccount := struct {
+		MakerCommission   int64 `json:"makerCommision"`
+		TakerCommission  int64 `json:"takerCommission"`
+		BuyerCommission  int64 `json:"buyerCommission"`
+		SellerCommission int64 `json:"sellerCommission"`
+		UpdateTime		 float64 `json:"updateTime"`
+		Balances         []struct {
+			Asset  string `json:"asset"`
+			Free   string `json:"free"`
+			Locked string `json:"locked"`
+		}
+	}{}
+	if err := json.Unmarshal(res, &rawAccount); err != nil {
+		return nil, err
+	}
+
+	acc := &common.Account{
+		MakerCommission:  rawAccount.MakerCommission,
+		TakerCommission:  rawAccount.TakerCommission,
+		BuyerCommission:  rawAccount.BuyerCommission,
+		SellerCommission: rawAccount.SellerCommission,
+		LastUpdateTs:	 common.TimeFromUnixTimestampFloat(rawAccount.UpdateTime),
+		Balances: make([]*common.Balance, 0),
+	}
+	for _, b := range rawAccount.Balances {
+		f := common.ToFloat64(b.Free)
+		l := common.ToFloat64(b.Locked)
+
+		acc.Balances = append(acc.Balances, &common.Balance{
+			Coin:  common.Coin{
+				CoinSymbol: b.Asset,
+			},
+			Free:   f,
+			Locked: l,
+		})
+	}
+
+	return acc, nil
 }

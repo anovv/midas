@@ -5,8 +5,10 @@ import (
 )
 
 func main() {
-	brain.ScheduleTickerUpdates()
-	brain.SetupRequestReceiver()
-	defer brain.CleanupEyesHandler()
-	brain.RunArbDetector()
+	//brain.ScheduleTickerUpdates()
+	//brain.SetupRequestReceiver()
+	//defer brain.CleanupEyesHandler()
+	//brain.RunArbDetector()
+
+	brain.RunUpdateAccountInfo()
 }

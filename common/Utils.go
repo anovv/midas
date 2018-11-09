@@ -85,3 +85,7 @@ func FloatToString(input_num float64) string {
 func TimeFromUnixTimestampFloat(ts float64) time.Time {
 	return time.Unix(0, int64(ts)*int64(time.Millisecond))
 }
+
+func UnixMillis(t time.Time) int64 {
+	return t.UnixNano() / int64(time.Millisecond)
+}

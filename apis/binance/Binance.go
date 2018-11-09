@@ -8,7 +8,6 @@ import (
 	"midas/common"
 	"strconv"
 	"encoding/json"
-	"net/url"
 )
 
 const (
@@ -21,48 +20,12 @@ const (
 	DEPTH_URI              = "depth?symbol=%s&limit=%d"
 	USER_DATA_STREAM_URI   = "userDataStream"
 	ACCOUNT_URI 		   = "account"
+	ORDER_URI 			   = "order"
+	EXCHANGE_INFO_URI 	   = "exchangeInfo"
 
 	MIN_DEPTH = 5
 	MAX_DEPTH = 100
 )
-
-// TODO merge with GetAllTickers
-func GetAllPairs() ([]*common.CoinPair, error) {
-	tickersUri := API_V1 + TICKERS_URI
-	respData, err := network.NewHttpRequest(
-		"GET",
-		tickersUri,
-		nil,
-		false,
-		false)
-	if err != nil {
-		log.Println("GetAllPairs error:", err)
-		return nil, err
-	}
-
-	var tickerList []interface{}
-	err = json.Unmarshal(respData, &tickerList)
-	if err != nil {
-		log.Println("GetAllPairs error:", err)
-		return nil, err
-	}
-
-	var pairs []*common.CoinPair
-
-	for _, tickerInterface := range tickerList {
-		tickerMap := tickerInterface.(map[string]interface {})
-		pairSymbolInterface := tickerMap["symbol"]
-		pairSymbol := pairSymbolInterface.(string)
-		pair := common.SymbolToPair(pairSymbol)
-		if pair != nil {
-			pairs = append(pairs, pair)
-		} else {
-			log.Println("Unable to parse symbol: " + pairSymbol)
-		}
-	}
-
-	return pairs, nil
-}
 
 func GetAllTickers() (*common.TickersMap, error) {
 	tickersUri := API_V1 + TICKERS_URI
@@ -191,12 +154,10 @@ func GetUserDataStreamListenKey() (*string, error) {
 
 func PingUserDataStream(listenKey *string) bool {
 	uri := API_V1 + USER_DATA_STREAM_URI
-	reqData := url.Values{}
-	reqData.Set("listenKey", *listenKey)
 	_, err := network.NewHttpRequest(
 		"PUT",
 		uri,
-		reqData,
+		map[string]string{"listenKey": *listenKey},
 		true,
 		false)
 	if err != nil {
@@ -209,12 +170,10 @@ func PingUserDataStream(listenKey *string) bool {
 
 func CloseUserDataStream(listenKey *string) bool {
 	uri := API_V1 + USER_DATA_STREAM_URI
-	reqData := url.Values{}
-	reqData.Set("listenKey", *listenKey)
 	_, err := network.NewHttpRequest(
 		"DELETE",
 		uri,
-		reqData,
+		map[string]string{"listenKey": *listenKey},
 		true,
 		false)
 	if err != nil {
@@ -276,4 +235,131 @@ func GetAccount() (*common.Account, error) {
 	}
 
 	return acc, nil
+}
+
+// only market or limit
+func NewOrder(
+	coinPair common.CoinPair,
+	side common.OrderSide,
+	orderType common.OrderType,
+	quantity float64,
+	price float64,
+	clientOrderId string,
+	timestamp int64,
+	test bool,
+	) (*common.ExecutedOrderFullResponse, error) {
+
+	if orderType != common.TypeMarket && orderType != common.TypeLimit {
+		panic("NewOrder error: unsupported order type: " + string(orderType))
+	}
+
+	params := make(map[string]string)
+	params["symbol"] = coinPair.PairSymbol
+	params["side"] = string(side)
+	params["type"] = string(orderType)
+	if orderType == common.TypeLimit {
+		params["timeInForce"] = string(common.IOC)
+	}
+	params["quantity"] = strconv.FormatFloat(quantity, 'f', -1, 64)
+	if orderType == common.TypeLimit {
+		params["price"] = strconv.FormatFloat(price, 'f', -1, 64)
+	}
+	params["timestamp"] = strconv.FormatInt(timestamp, 10)
+	if clientOrderId != "" {
+		params["newClientOrderId"] = clientOrderId
+	}
+
+	var orderUri string
+	if test {
+		orderUri = API_V3 + ORDER_URI + "/test"
+	} else {
+		orderUri = API_V3 + ORDER_URI
+	}
+	res, err := network.NewHttpRequest(
+		"POST",
+		orderUri,
+		params,
+		true,
+		true)
+
+	if err != nil {
+		log.Println("MarketOrder error:", err)
+		return nil, err
+	}
+
+	rawResponse := struct {
+		Symbol        string `json:"symbol"`
+		OrderID       int64 `json:"orderId"`
+		ClientOrderID string `json:"clientOrderId"`
+		TransactTime  float64 `json:"transactTime"`
+		Price         string `json:"price"`
+		OrigQty       string `json:"origQty"`
+		ExecutedQty   string `json:"executedQty"`
+		CumulativeQuoteQty string `json:"cummulativeQuoteQty"`
+		Status        string `json:"status"`
+		TimeInForce   string `json:"timeInForce"`
+		Type          string `json:"type"`
+		Side          string `json:"side"`
+		Fills 		  []struct {
+			Price 		string `json:"price"`
+			Qty 		string `json:"qty"`
+			Commission  string `json:"commission"`
+			CommissionAsset string `json:"commissionAsset"`
+		}
+	}{}
+
+	if err := json.Unmarshal(res, &rawResponse); err != nil {
+		log.Println("MarketOrder unmarshaling error:", err)
+		return nil, err
+	}
+
+	executedOrder := &common.ExecutedOrderFullResponse{
+		rawResponse.Symbol,
+		rawResponse.OrderID,
+		rawResponse.ClientOrderID,
+		common.TimeFromUnixTimestampFloat(rawResponse.TransactTime),
+		common.ToFloat64(rawResponse.Price),
+		common.ToFloat64(rawResponse.OrigQty),
+		common.ToFloat64(rawResponse.ExecutedQty),
+		common.ToFloat64(rawResponse.CumulativeQuoteQty),
+		common.OrderStatus(rawResponse.Status),
+		common.TimeInForce(rawResponse.TimeInForce),
+		common.OrderType(rawResponse.Type),
+		common.OrderSide(rawResponse.Side),
+		make([]*common.Fill, 0),
+	}
+
+	for _, f := range rawResponse.Fills {
+		executedOrder.Fills = append(executedOrder.Fills, &common.Fill{
+			common.ToFloat64(f.Price),
+			common.ToFloat64(f.Qty),
+			common.ToFloat64(f.Commission),
+			f.CommissionAsset,
+		})
+	}
+
+	return executedOrder, nil
+}
+
+func GetExchangeInfo() (*common.ExchangeInfo, error) {
+	exchangeInfoUri := API_V1 + EXCHANGE_INFO_URI
+	res, err := network.NewHttpRequest(
+		"GET",
+		exchangeInfoUri,
+		nil,
+		false,
+		false)
+	if err != nil {
+		log.Println("GetExchangeInfo error:", err)
+		return nil, err
+	}
+
+	var info common.ExchangeInfo
+
+	if err := json.Unmarshal(res, &info); err != nil {
+		log.Println("GetExchangeInfo unmarshaling error:", err)
+		return nil, err
+	}
+
+	return &info, nil
 }

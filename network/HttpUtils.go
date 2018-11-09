@@ -5,15 +5,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"strings"
-	"net/url"
 	"midas/configuration"
 	"strconv"
 	"time"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
-	"log"
 )
 
 var apiKey = configuration.ReadBrainConfig().API_KEY
@@ -22,39 +19,53 @@ var apiSecret = configuration.ReadBrainConfig().API_SECRET
 func NewHttpRequest(
 	reqType string,
 	reqUrl string,
-	reqData url.Values,
+	reqData map[string]string,
 	useApiKey bool,
 	useSignature bool) ([]byte, error) {
 
+	transport := &http.Transport{}
+	client := &http.Client{
+		Transport: transport,
+	}
+
+	req, err := http.NewRequest(reqType, reqUrl, nil)
+	if err != nil {
+		return nil, err
+	}
+
 	if reqData == nil {
-		reqData = url.Values{}
+		reqData = make(map[string]string)
 	}
-
-	if useSignature {
-		reqData.Set("recvWindow", "60000")
-		tonce := strconv.FormatInt(time.Now().UnixNano(), 10)[0:13]
-		reqData.Set("timestamp", tonce)
-		payload := reqData.Encode()
-		signature, err := getParamHmacSHA256Sign(apiSecret, payload)
-		log.Println("payload: " + payload)
-		log.Println("sig: " + signature)
-		if err != nil {
-			return nil, err
-		}
-		reqData.Set("signature", signature)
-	}
-
-	req, _ := http.NewRequest(reqType, reqUrl, strings.NewReader(reqData.Encode()))
-
-	//req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	// TODO is this needed?
-	//req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 5.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/31.0.1650.63 Safari/537.36")
 
 	if useApiKey {
 		req.Header.Add("X-MBX-APIKEY", apiKey)
 	}
 
-	client := http.DefaultClient
+	if useSignature {
+		// TODO add mutex on ts
+		reqData["recvWindow"] = "600000"
+		if _, hasTs := reqData["timestamp"]; !hasTs {
+			tonce := strconv.FormatInt(time.Now().UnixNano(), 10)[0:13]
+			reqData["timestamp"] = tonce
+		}
+	}
+
+	q := req.URL.Query()
+	for key, val := range reqData {
+		q.Add(key, val)
+	}
+
+	if useSignature {
+		payload := q.Encode()
+		signature, err := getParamHmacSHA256Sign(apiSecret, payload)
+		if err != nil {
+			return nil, err
+		}
+		q.Add("signature", signature)
+	}
+
+	req.URL.RawQuery = q.Encode()
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err

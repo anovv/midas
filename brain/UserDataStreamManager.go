@@ -71,6 +71,9 @@ func restartUserDataStream() {
 }
 
 func handleMsg(message []byte) {
+	str := fmt.Sprintf("%s", message)
+	log.Println("UserDataStream update: " + str)
+
 	var rawRespEventType map[string]interface{}
 
 	if err := json.Unmarshal(message, &rawRespEventType); err != nil {
@@ -124,7 +127,7 @@ func handleMsg(message []byte) {
 
 		if account == nil || account.LastUpdateTs.Before(acc.LastUpdateTs) {
 			account = acc
-			PrintAcc("ws acc update: ")
+			//PrintAcc("ws acc update: ")
 		}
 	case EXECUTION_REPORT_EVENT_TYPE:
 		// TODO handle order execution updates

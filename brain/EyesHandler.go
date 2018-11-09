@@ -118,7 +118,7 @@ func getDelayMicroSeconds(command string, exchange string) int {
 		delay := int(brainConfig.FETCH_DELAYS_MICROS[exchange][command]/numEyes)
 		//log.Println("Delay: " + strconv.Itoa(delay) + "micros")
 		return delay
-	// TODO handle depth
+		// TODO handle depth
 	default:
 		return 0
 	}

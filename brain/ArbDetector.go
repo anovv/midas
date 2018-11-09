@@ -1,7 +1,6 @@
 package brain
 
 import (
-	"midas/apis/binance"
 	"midas/common"
 	"midas/common/arb"
 	"sort"
@@ -19,43 +18,48 @@ const (
 	BINANCE_BNB_FEE = 0.00075
 )
 
-var triangles = make(map[string]*arb.Triangle)
-var pairs = make(map[string]*common.CoinPair)
+var arbTriangles = make(map[string]*arb.Triangle)
+var arbCoins = make(map[common.Coin]bool)
+var arbPairs = make(map[common.CoinPair]bool)
 
 var arbStates = sync.Map{}
 
 var brainConfig = configuration.ReadBrainConfig()
 
 func RunArbDetector() {
-	initArbDetector()
+	InitArbDetector()
 	runReportArb()
 	runDetectArbBLOCKING()
 }
 
-func initArbDetector() {
+func InitArbDetector() {
 	log.Println("Initializing arb detector...")
-	logging.CreateTableIfNotExistsMySQL()
-	_pairs, err := binance.GetAllPairs()
-	if err != nil {
-		panic("Can't fetch list of pairs")
+	if allPairs == nil {
+		panic("Arb detector error: pairs are not fetched")
 	}
-
-	// memoize
-	for _, pair := range _pairs {
-		pairs[pair.PairSymbol] = pair
-	}
-
-	log.Println("Analyzing " + strconv.Itoa(len(_pairs)) + " pairs...")
+	log.Println("Analyzing " + strconv.Itoa(len(allPairs)) + " pairs...")
 	tStart := time.Now()
 
-	for _, pairA := range _pairs {
-		for _,  pairB := range _pairs {
-			for _,  pairC := range _pairs {
+	for _, pairA := range allPairs {
+		for _,  pairB := range allPairs {
+			for _,  pairC := range allPairs {
 				if isTriangle(pairA, pairB, pairC) {
 					key, triangle := makeTriangle(pairA, pairB, pairC)
-					if triangles[key] == nil {
-						triangles[key] = triangle
+
+					// Record arb triangle
+					if arbTriangles[key] == nil {
+						arbTriangles[key] = triangle
 					}
+
+					// Record arb coins
+					arbCoins[triangle.CoinA] = true
+					arbCoins[triangle.CoinB] = true
+					arbCoins[triangle.CoinC] = true
+
+					// Record arb pairs
+					arbPairs[*triangle.PairAB] = true
+					arbPairs[*triangle.PairBC] = true
+					arbPairs[*triangle.PairAC] = true
 				}
 			}
 		}
@@ -63,7 +67,9 @@ func initArbDetector() {
 
 	delta := time.Since(tStart)
 	log.Println("Initializing finished in " + delta.String())
-	// TODO print number of triangles
+	log.Println("Arb triangles: " + strconv.Itoa(len(arbTriangles)))
+	log.Println("Arb pairs: " + strconv.Itoa(len(arbPairs)))
+	log.Println("Arb coins: " + strconv.Itoa(len(arbCoins)))
 	logging.LogLineToFile("Launched at " + time.Now().String())
 }
 
@@ -91,7 +97,7 @@ func runReportArb() {
 func runDetectArbBLOCKING() {
 	log.Println("Looking for arb opportunities...")
 	for {
-		for _, triangle := range triangles {
+		for _, triangle := range arbTriangles {
 			qtyA := 1.0
 			// A->B
 			sucB, qtyB := simTrade(qtyA, triangle.PairAB.PairSymbol, triangle.CoinA.CoinSymbol)
@@ -179,11 +185,11 @@ func makeTriangle(pairA, pairB, pairC *common.CoinPair) (string, *arb.Triangle) 
 		triangleKey += key
 	}
 
-	coinA := pairA.CoinA
-	coinB := pairA.CoinB
-	coinC := pairB.CoinA
-	if coinA == pairB.CoinA || coinB == pairB.CoinA {
-		coinC = pairB.CoinB
+	coinA := pairA.BaseCoin
+	coinB := pairA.QuoteCoin
+	coinC := pairB.BaseCoin
+	if coinA == pairB.BaseCoin || coinB == pairB.BaseCoin {
+		coinC = pairB.QuoteCoin
 	}
 
 	triangle := &arb.Triangle{
@@ -202,8 +208,8 @@ func makeTriangle(pairA, pairB, pairC *common.CoinPair) (string, *arb.Triangle) 
 func getCoinSymbols(pairs ...*common.CoinPair) map[string]bool {
 	coinSymbols := make(map[string]bool)
 	for _, pair := range pairs {
-		coinSymbols[pair.CoinA.CoinSymbol] = true
-		coinSymbols[pair.CoinB.CoinSymbol] = true
+		coinSymbols[pair.BaseCoin.CoinSymbol] = true
+		coinSymbols[pair.QuoteCoin.CoinSymbol] = true
 	}
 
 	return coinSymbols

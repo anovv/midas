@@ -42,6 +42,7 @@ type AvgFetchTimeStat struct {
 }
 
 // No need for mutex as we simply update this variable with a new map instance on each write
+// TODO decide where this belongs (ExchangeInfoManager?)
 var tickersMap *common.TickersMap
 
 var eyes = make(map[int]*EyeHandle)

@@ -19,8 +19,8 @@ const (
 )
 
 var arbTriangles = make(map[string]*arb.Triangle)
-var arbCoins = make(map[common.Coin]bool)
-var arbPairs = make(map[common.CoinPair]bool)
+var arbCoins = make(map[string]bool)
+var arbPairs = make(map[string]bool)
 
 var arbStates = sync.Map{}
 
@@ -52,14 +52,14 @@ func InitArbDetector() {
 					}
 
 					// Record arb coins
-					arbCoins[triangle.CoinA] = true
-					arbCoins[triangle.CoinB] = true
-					arbCoins[triangle.CoinC] = true
+					arbCoins[triangle.CoinA.CoinSymbol] = true
+					arbCoins[triangle.CoinB.CoinSymbol] = true
+					arbCoins[triangle.CoinC.CoinSymbol] = true
 
 					// Record arb pairs
-					arbPairs[*triangle.PairAB] = true
-					arbPairs[*triangle.PairBC] = true
-					arbPairs[*triangle.PairAC] = true
+					arbPairs[(*triangle.PairAB).PairSymbol] = true
+					arbPairs[(*triangle.PairBC).PairSymbol] = true
+					arbPairs[(*triangle.PairAC).PairSymbol] = true
 				}
 			}
 		}

@@ -1,7 +1,5 @@
 package common
 
-import "strings"
-
 type ExchangeInfo struct {
 	Timezone string `json:"timezone"`
 	ServerTime int64 `json:"serverTime"`
@@ -38,76 +36,15 @@ const (
 	FILTER_TYPE_EXCHANGE_MAX_NUM_ALGO_ORDERS = "EXCHANGE_MAX_NUM_ALGO_ORDERS"
 )
 
-func (exchangeInfo *ExchangeInfo) GetAllPairs() []*CoinPair {
-	var pairs []*CoinPair
+type FilterCheck string
 
-	for _, symbol := range exchangeInfo.Symbols {
-		pair := &CoinPair{
-			symbol.Symbol,
-			Coin{
-				symbol.BaseAsset,
-			},
-			Coin{
-				symbol.QuoteAsset,
-			},
-		}
-		pairs = append(pairs, pair)
-	}
-
-	return pairs
-}
-
-func (exchangeInfo *ExchangeInfo) GetFiltersMap() *FiltersMap {
-	filtersMap := make(FiltersMap)
-	for _, symbol := range exchangeInfo.Symbols {
-		filtersMap[symbol.Symbol] = symbol.Filters
-	}
-
-	return &filtersMap
-}
-
-func (filtersMap *FiltersMap) GetMinPrice(symbol string) float64 {
-	filter := filtersMap.GetFilter(symbol, FILTER_TYPE_PRICE_FILTER)
-	return ToFloat64((*filter)["minPrice"])
-}
-
-func (filtersMap *FiltersMap) GetMaxPrice(symbol string) float64 {
-	filter := filtersMap.GetFilter(symbol, FILTER_TYPE_PRICE_FILTER)
-	return ToFloat64((*filter)["maxPrice"])
-}
-
-func (filtersMap *FiltersMap) GetTickSize(symbol string) float64 {
-	filter := filtersMap.GetFilter(symbol, FILTER_TYPE_PRICE_FILTER)
-	return ToFloat64((*filter)["tickSize"])
-}
-
-func (filtersMap *FiltersMap) GetMinQty(symbol string) float64 {
-	filter := filtersMap.GetFilter(symbol, FILTER_TYPE_LOT_SIZE)
-	return ToFloat64((*filter)["minQty"])
-}
-
-func (filtersMap *FiltersMap) GetMaxQty(symbol string) float64 {
-	filter := filtersMap.GetFilter(symbol, FILTER_TYPE_LOT_SIZE)
-	return ToFloat64((*filter)["maxQty"])
-}
-
-func (filtersMap *FiltersMap) GetStepSize(symbol string) float64 {
-	filter := filtersMap.GetFilter(symbol, FILTER_TYPE_LOT_SIZE)
-	return ToFloat64((*filter)["stepSize"])
-}
-
-func (filtersMap *FiltersMap) GetMinNotional(symbol string) float64 {
-	filter := filtersMap.GetFilter(symbol, FILTER_TYPE_MIN_NOTIONAL)
-	return ToFloat64((*filter)["minNotional"])
-}
-
-func (filtersMap *FiltersMap) GetFilter(symbol string, filterName string) *Filter {
-	filtersList := (*filtersMap)[symbol]
-	for _, filter := range filtersList {
-		if strings.Compare(filter["filterType"].(string), filterName) == 0 {
-			return &filter
-		}
-	}
-
-	panic("Filter " + filterName + " for " + symbol + " does not exist")
-}
+var(
+	FilterCheckOk = FilterCheck("OK")
+	FilterCheckMinPrice = FilterCheck("MIN_PRICE")
+	FilterCheckMaxPrice = FilterCheck("MAX_PRICE")
+	FilterCheckTickSize = FilterCheck("TICK_SIZE")
+	FilterCheckMinQty = FilterCheck("MIN_QTY")
+	FilterCheckMaxQty = FilterCheck("MAX_QTY")
+	FilterCheckStepSize = FilterCheck("STEP_SIZE")
+	FilterCheckMinNotional = FilterCheck("MIN_NOTIONAL")
+)

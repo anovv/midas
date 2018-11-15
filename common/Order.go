@@ -36,18 +36,20 @@ var (
 
 )
 
-type NewOrderRequest struct {
-	Symbol           string
-	Side             OrderSide
-	Type             OrderType
-	TimeInForce      TimeInForce
-	Qty         	 float64
-	Price            float64
-	ClientOrderID 	 string
-	StopPrice        float64
-	IcebergQty       float64
-	OrderRespType	 OrderRespType
-	Timestamp        int64
+type OrderRequest struct {
+	Symbol string
+	Side OrderSide
+	Type OrderType
+	Qty float64
+	Price float64
+}
+
+func (or OrderRequest) String() string {
+	return "[Side: " + string(or.Side) +
+		" | Symbol: " + or.Symbol +
+			" | Type: " + string(or.Type) +
+				" | Qty: " + FloatToString(or.Qty) +
+					" | Price: " + FloatToString(or.Price) + "]"
 }
 
 type ExecutedOrderFullResponse struct {

@@ -71,9 +71,6 @@ func restartUserDataStream() {
 }
 
 func handleMsg(message []byte) {
-	str := fmt.Sprintf("%s", message)
-	log.Println("UserDataStream update: " + str)
-
 	var rawRespEventType map[string]interface{}
 
 	if err := json.Unmarshal(message, &rawRespEventType); err != nil {
@@ -110,39 +107,25 @@ func handleMsg(message []byte) {
 			BuyerCommission:  rawAccount.BuyerCommission,
 			SellerCommission: rawAccount.SellerCommission,
 			LastUpdateTs:	 common.TimeFromUnixTimestampFloat(rawAccount.UpdateTime),
-			Balances: make([]*common.Balance, 0),
+			Balances: make(map[string]*common.Balance),
 		}
 		for _, b := range rawAccount.Balances {
 			f := common.ToFloat64(b.Free)
 			l := common.ToFloat64(b.Locked)
 
-			acc.Balances = append(acc.Balances, &common.Balance{
-				Coin:  common.Coin{
-					CoinSymbol: b.Asset,
-				},
+			acc.Balances[b.Asset] = &common.Balance{
+				CoinSymbol: b.Asset,
 				Free:   f,
 				Locked: l,
-			})
+			}
 		}
 
 		if account == nil || account.LastUpdateTs.Before(acc.LastUpdateTs) {
 			account = acc
-			//PrintAcc("ws acc update: ")
 		}
 	case EXECUTION_REPORT_EVENT_TYPE:
 		// TODO handle order execution updates
 	default:
 		return
-	}
-}
-
-func PrintAcc(msg string) {
-	if account != nil {
-		out, err := json.Marshal(account)
-		if err != nil {
-			panic (err)
-		}
-
-		fmt.Println(msg + string(out))
 	}
 }

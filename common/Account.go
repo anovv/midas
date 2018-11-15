@@ -8,11 +8,11 @@ type Account struct {
 	BuyerCommission  int64
 	SellerCommission int64
 	LastUpdateTs time.Time
-	Balances        []*Balance
+	Balances		map[string]*Balance
 }
 
 type Balance struct {
-	Coin Coin
+	CoinSymbol string
 	Free float64
 	Locked float64
 }

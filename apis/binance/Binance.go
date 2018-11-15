@@ -219,19 +219,17 @@ func GetAccount() (*common.Account, error) {
 		BuyerCommission:  rawAccount.BuyerCommission,
 		SellerCommission: rawAccount.SellerCommission,
 		LastUpdateTs:	 common.TimeFromUnixTimestampFloat(rawAccount.UpdateTime),
-		Balances: make([]*common.Balance, 0),
+		Balances: make(map[string]*common.Balance),
 	}
 	for _, b := range rawAccount.Balances {
 		f := common.ToFloat64(b.Free)
 		l := common.ToFloat64(b.Locked)
 
-		acc.Balances = append(acc.Balances, &common.Balance{
-			Coin:  common.Coin{
-				CoinSymbol: b.Asset,
-			},
+		acc.Balances[b.Asset] = &common.Balance{
+			CoinSymbol: b.Asset,
 			Free:   f,
 			Locked: l,
-		})
+		}
 	}
 
 	return acc, nil
@@ -239,7 +237,7 @@ func GetAccount() (*common.Account, error) {
 
 // only market or limit
 func NewOrder(
-	coinPair common.CoinPair,
+	symbol string,
 	side common.OrderSide,
 	orderType common.OrderType,
 	quantity float64,
@@ -254,7 +252,7 @@ func NewOrder(
 	}
 
 	params := make(map[string]string)
-	params["symbol"] = coinPair.PairSymbol
+	params["symbol"] = symbol
 	params["side"] = string(side)
 	params["type"] = string(orderType)
 	if orderType == common.TypeLimit {

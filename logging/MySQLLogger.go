@@ -143,7 +143,7 @@ func RecordArbStateMySQL(state *arb.State) {
 		state.Orders["AC"].Qty,
 		state.Orders["AC"].Price,
 	)
-	checkErr(err)
+	panic(err)
 }
 
 func CreateTableIfNotExistsMySQL() {

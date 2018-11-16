@@ -2,6 +2,8 @@ package arb
 
 import (
 	"time"
+	"midas/common"
+	"encoding/json"
 )
 
 type State struct {
@@ -12,6 +14,7 @@ type State struct {
 	StartTs time.Time
 	LastUpdateTs time.Time
 	FrameUpdateTsQueue []time.Time // holds timestamps of frame updates
+	Orders []*common.OrderRequest
 }
 
 func (s *State) GetFrameUpdateCount() int {
@@ -22,4 +25,13 @@ func (s *State) GetFrameUpdateCount() int {
 		}
 	}
 	return count
+}
+
+func (s *State) String() string {
+	b, err := json.Marshal(s)
+	if err != nil {
+		panic("Error marshaling arb state: " + err.Error())
+	}
+
+	return string(b)
 }

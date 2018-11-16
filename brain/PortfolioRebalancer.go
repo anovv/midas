@@ -11,10 +11,10 @@ import (
 )
 
 var weights = map[string]float64{
-	"BTC" : 0.2,
-	"ETH" : 0.1,
-	"BNB" : 0.1,
-	"USDT" : 0.05,
+	"BTC" : 0.1,
+	"ETH" : 0.05,
+	"BNB" : 0.05,
+	"USDT" : 0.025,
 }
 
 const (

@@ -6,11 +6,12 @@ import (
 )
 
 const (
-	FILE_PATH = "logs.txt"
+	LOGS_FILE_PATH = "logs.txt"
+	ARB_STATES_FILE_PATH = "arb_states.txt"
 )
 
-func LogLineToFile(line string) {
-	f, err := os.OpenFile(FILE_PATH, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+func LogLineToFile(line string, file string) {
+	f, err := os.OpenFile(file, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
 		log.Println("Can't open logging file: " + err.Error())
 		return

@@ -58,11 +58,11 @@ func GetAllTickers() (*common.TickersMap, error) {
 		bidQty, _ := strconv.ParseFloat(tickerMap["bidQty"].(string), 64)
 		askQty, _ := strconv.ParseFloat(tickerMap["askQty"].(string), 64)
 		tickers[pairSymbol] = &common.Ticker{
-			Symbol: pairSymbol,
+			Symbol:   pairSymbol,
 			BidPrice: bidPrice,
 			AskPrice: askPrice,
-			BidQty: bidQty,
-			AskQnty: askQty,
+			BidQty:   bidQty,
+			AskQty:   askQty,
 		}
 	}
 

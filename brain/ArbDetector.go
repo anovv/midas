@@ -11,6 +11,7 @@ import (
 	"sync"
 	"midas/logging"
 	"midas/configuration"
+	"math"
 )
 
 const (
@@ -70,7 +71,7 @@ func InitArbDetector() {
 	log.Println("Arb triangles: " + strconv.Itoa(len(arbTriangles)))
 	log.Println("Arb pairs: " + strconv.Itoa(len(arbPairs)))
 	log.Println("Arb coins: " + strconv.Itoa(len(arbCoins)))
-	logging.LogLineToFile("Launched at " + time.Now().String())
+	logging.LogLineToFile("Launched at " + time.Now().String(), logging.ARB_STATES_FILE_PATH)
 }
 
 func runReportArb() {
@@ -85,7 +86,7 @@ func runReportArb() {
 				if time.Since(arbState.LastUpdateTs) > time.Duration(brainConfig.ARB_REPORT_UPDATE_THRESHOLD_MICROS) * time.Microsecond {
 					arbStates.Delete(k)
 					// TODO async logging
-					logging.RecordArbStateMySQL(arbState)
+					logging.LogLineToFile(arbState.String(), logging.ARB_STATES_FILE_PATH)
 				}
 				return true
 			})
@@ -98,33 +99,10 @@ func runDetectArbBLOCKING() {
 	log.Println("Looking for arb opportunities...")
 	for {
 		for _, triangle := range arbTriangles {
-			qtyA := 1.0
-			// A->B
-			sucB, qtyB := simTrade(qtyA, triangle.PairAB.PairSymbol, triangle.CoinA.CoinSymbol)
-			// B->C
-			sucC, qtyC := simTrade(qtyB, triangle.PairBC.PairSymbol, triangle.CoinB.CoinSymbol)
-			// C->A
-			sucA, newQtyA := simTrade(qtyC, triangle.PairAC.PairSymbol, triangle.CoinC.CoinSymbol)
-
-			if !sucA || !sucB || !sucC {
-				continue
-			}
-
-			profit := (newQtyA - qtyA)/qtyA
-
-			if newQtyA > qtyA {
-				arbStateKey := triangle.Key + "_" + common.FloatToString(profit)
-				now := time.Now()
-
-				res, loaded := arbStates.LoadOrStore(arbStateKey, &arb.State{
-					QtyBefore: qtyA,
-					QtyAfter: newQtyA,
-					ProfitRelative: profit,
-					Triangle: triangle,
-					StartTs: now,
-					LastUpdateTs: now,
-					FrameUpdateTsQueue: make([]time.Time, 0),
-				})
+			arbState := findArb(triangle)
+			if arbState != nil {
+				arbStateKey := triangle.Key + "_" + common.FloatToString(arbState.ProfitRelative)
+				res, loaded := arbStates.LoadOrStore(arbStateKey, arbState)
 				if loaded {
 					arbState := res.(*arb.State)
 					arbState.LastUpdateTs = time.Now()
@@ -134,34 +112,176 @@ func runDetectArbBLOCKING() {
 	}
 }
 
+func findArb(triangle *arb.Triangle) *arb.State {
+	if tickersMap == nil {
+		return nil
+	}
+
+	tickerAB := (*tickersMap)[triangle.PairAB.PairSymbol]
+	tickerBC := (*tickersMap)[triangle.PairBC.PairSymbol]
+	tickerAC := (*tickersMap)[triangle.PairAC.PairSymbol]
+
+	if tickerAB == nil || tickerBC == nil || tickerAC == nil {
+		return nil
+	}
+
+	balanceA := account.Balances[triangle.CoinA.CoinSymbol].Free
+	balanceB := account.Balances[triangle.CoinB.CoinSymbol].Free
+	balanceC := account.Balances[triangle.CoinC.CoinSymbol].Free
+
+	qtyA := 1.0 // we use arbitrary qty first, if prices form arbitrage we calculate tradable qty later
+
+	// Check if prices form arbitrage
+	// A->B
+	qtyB, sideAB, tradeQtyAB, priceAB := simTrade(qtyA, triangle.PairAB.PairSymbol, triangle.CoinA.CoinSymbol, tickerAB)
+	// B->C
+	qtyC, sideBC, tradeQtyBC, priceBC := simTrade(qtyB, triangle.PairBC.PairSymbol, triangle.CoinB.CoinSymbol, tickerBC)
+	// C->A
+	newQtyA, sideAC, tradeQtyAC, priceAC := simTrade(qtyC, triangle.PairAC.PairSymbol, triangle.CoinC.CoinSymbol, tickerAC)
+
+	if newQtyA <= qtyA {
+		// No arb
+		return nil
+	}
+
+	// Find max tradable qty equivalent in A
+	balanceBinA := 0.0
+	if sideAB == common.SideSell {
+		balanceBinA = balanceB * priceAB
+	} else {
+		balanceBinA = balanceB / priceAB
+	}
+
+	balanceCinA := 0.0
+	if sideAC == common.SideSell {
+		balanceCinA = balanceC * priceAC
+	} else {
+		balanceCinA = balanceC / priceAC
+	}
+
+	tradeQtyABinA := 0.0
+	if sideAB == common.SideSell {
+		tradeQtyABinA = tradeQtyAB * priceAB
+	} else {
+		tradeQtyABinA = tradeQtyAB / priceAB
+	}
+
+	tradeQtyACinA := 0.0
+	if sideAC == common.SideSell {
+		tradeQtyACinA = tradeQtyAC * priceAC
+	} else {
+		tradeQtyACinA = tradeQtyAC / priceAC
+	}
+
+	tradeQtyBCinA := 0.0
+	if sideBC == common.SideSell {
+		if sideAB == common.SideSell {
+			tradeQtyBCinA = tradeQtyBC * priceAB
+		} else {
+			tradeQtyBCinA = tradeQtyBC / priceAB
+		}
+	} else {
+		if sideAC == common.SideSell {
+			tradeQtyBCinA = tradeQtyBC * priceAC
+		} else {
+			tradeQtyBCinA = tradeQtyBC / priceAC
+		}
+	}
+
+	minBalanceInA := math.Min(math.Min(balanceBinA, balanceCinA), balanceA)
+	minTradeQtyInA := math.Min(math.Min(tradeQtyABinA, tradeQtyACinA), tradeQtyBCinA)
+
+	minTradeQtyInA = math.Min(minBalanceInA, minTradeQtyInA)
+
+	// Convert this qty back for each coin
+	if sideAB == common.SideSell {
+		tradeQtyAB = minTradeQtyInA
+	} else {
+		tradeQtyAB = minTradeQtyInA * priceAB
+	}
+
+	if sideAC == common.SideSell {
+		tradeQtyAC = minTradeQtyInA
+	} else {
+		tradeQtyAC = minTradeQtyInA * priceAC
+	}
+
+	if sideBC == common.SideSell {
+		if sideAB == common.SideSell {
+			tradeQtyBC = minTradeQtyInA / priceAB
+		} else {
+			tradeQtyBC = minTradeQtyInA * priceAB
+		}
+	} else {
+		if sideAC == common.SideSell {
+			tradeQtyBC = minTradeQtyInA / priceAC
+		} else {
+			tradeQtyBC = minTradeQtyInA * priceAC
+		}
+	}
+
+	orders := make([]*common.OrderRequest, 0)
+	orders = append(orders, &common.OrderRequest{
+		triangle.PairAB.PairSymbol,
+		sideAB,
+		common.TypeLimit,
+		tradeQtyAB,
+		priceAB,
+	})
+	orders = append(orders, &common.OrderRequest{
+		triangle.PairBC.PairSymbol,
+		sideBC,
+		common.TypeLimit,
+		tradeQtyBC,
+		priceBC,
+	})
+	orders = append(orders, &common.OrderRequest{
+		triangle.PairAC.PairSymbol,
+		sideAC,
+		common.TypeLimit,
+		tradeQtyAC,
+		priceAC,
+	})
+
+	now := time.Now()
+	profit := (newQtyA - qtyA)/qtyA
+
+	arbState := &arb.State{
+		QtyBefore: minTradeQtyInA,
+		QtyAfter: minTradeQtyInA * (1 + profit),
+		ProfitRelative: profit,
+		Triangle: triangle,
+		StartTs: now,
+		LastUpdateTs: now,
+		FrameUpdateTsQueue: make([]time.Time, 0),
+		Orders: orders,
+	}
+
+	return arbState
+}
+
 // given rate B/A with bid price (or A/B with ask price),
 // trades qtyA of A for B and returns qtyB
-func simTrade(qtyA float64, pairSymbol string, coinASymbol string) (bool, float64) {
-	if tickersMap == nil {
-		return false, 0
-	}
-
-	buyA := false
+func simTrade(
+	qtyA float64,
+	pairSymbol string,
+	coinASymbol string,
+	ticker *common.Ticker) (float64, common.OrderSide, float64, float64) {
+	side := common.SideSell
 	if strings.HasSuffix(pairSymbol, coinASymbol) {
-		buyA = true
+		side = common.SideBuy
 	}
 
-	fee := BINANCE_DEFAULT_FEE
-	if strings.Contains(pairSymbol, "BNB") {
-		fee = BINANCE_BNB_FEE
-	}
-
-	ticker := (*tickersMap)[pairSymbol]
-
-	if ticker == nil {
-		return false, 0
-	}
-
-	if buyA {
-		return true, (qtyA * ticker.BidPrice) * (1.0 - fee)
+	if side == common.SideBuy {
+		return applyFee(qtyA * ticker.BidPrice), side, ticker.BidQty, ticker.BidPrice
 	} else {
-		return true, (qtyA / ticker.AskPrice) * (1.0 - fee)
+		return applyFee(qtyA / ticker.AskPrice), side, ticker.AskQty, ticker.AskPrice
 	}
+}
+
+func applyFee(qty float64) float64 {
+	// TODO properly calc fee
+	return qty * (1.0 - BINANCE_BNB_FEE)
 }
 
 func isTriangle(pairA, pairB, pairC *common.CoinPair) bool {

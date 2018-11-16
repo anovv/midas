@@ -5,11 +5,11 @@ import "encoding/json"
 type TickersMap map[string]*Ticker
 
 type Ticker struct {
-	Symbol string
+	Symbol   string
 	BidPrice float64
-	BidQty float64
+	BidQty   float64
 	AskPrice float64
-	AskQnty float64
+	AskQty   float64
 }
 
 func (tickersMap *TickersMap) Serialize() string {

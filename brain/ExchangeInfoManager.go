@@ -113,7 +113,7 @@ func GetMinNotional(symbol string) float64 {
 }
 
 func GetMarketNotional(symbol string, qty float64) {
-
+	// TODO
 }
 
 func FilterCheck(symbol string, qty float64, price float64) common.FilterCheck {

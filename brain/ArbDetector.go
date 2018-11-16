@@ -86,7 +86,7 @@ func runReportArb() {
 				if time.Since(arbState.LastUpdateTs) > time.Duration(brainConfig.ARB_REPORT_UPDATE_THRESHOLD_MICROS) * time.Microsecond {
 					arbStates.Delete(k)
 					// TODO async logging
-					logging.LogLineToFile(arbState.String(), logging.ARB_STATES_FILE_PATH)
+					logging.RecordArbStateMySQL(arbState)
 				}
 				return true
 			})
@@ -220,28 +220,28 @@ func findArb(triangle *arb.Triangle) *arb.State {
 		}
 	}
 
-	orders := make([]*common.OrderRequest, 0)
-	orders = append(orders, &common.OrderRequest{
+	orders := make(map[string]*common.OrderRequest)
+	orders["AB"] = &common.OrderRequest{
 		triangle.PairAB.PairSymbol,
 		sideAB,
 		common.TypeLimit,
 		tradeQtyAB,
 		priceAB,
-	})
-	orders = append(orders, &common.OrderRequest{
+	}
+	orders["BC"] = &common.OrderRequest{
 		triangle.PairBC.PairSymbol,
 		sideBC,
 		common.TypeLimit,
 		tradeQtyBC,
 		priceBC,
-	})
-	orders = append(orders, &common.OrderRequest{
+	}
+	orders["AC"] = &common.OrderRequest{
 		triangle.PairAC.PairSymbol,
 		sideAC,
 		common.TypeLimit,
 		tradeQtyAC,
 		priceAC,
-	})
+	}
 
 	now := time.Now()
 	profit := (newQtyA - qtyA)/qtyA

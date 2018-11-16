@@ -22,13 +22,25 @@ const (
 	FIELD_STARTED_AT = "started_at"
 	FIELD_FINISHED_AT = "finished_at"
 	FIELD_LASTED_FRAMES = "lasted_frames"
+	FIELD_SYMBOL_AB = "symbol_ab"
+	FIELD_SIDE_AB = "side_ab"
+	FIELD_QTY_AB = "qty_ab"
+	FIELD_PRICE_AB = "price_ab"
+	FIELD_SYMBOL_BC = "symbol_bc"
+	FIELD_SIDE_BC = "side_bc"
+	FIELD_QTY_BC = "qty_bc"
+	FIELD_PRICE_BC = "price_bc"
+	FIELD_SYMBOL_AC = "symbol_ac"
+	FIELD_SIDE_AC = "side_ac"
+	FIELD_QTY_AC = "qty_ac"
+	FIELD_PRICE_AC = "price_ac"
 )
 
 const (
 	DB_DRIVER = "mysql"
 	DB_USER = "root"
 	DB_NAME = "midas"
-	TABLE_NAME = "arb_state_binance"
+	TABLE_NAME = "trade_and_arb_state_binance"
 	CREATE_TABLE_QUERY = "CREATE TABLE IF NOT EXISTS " + TABLE_NAME + "(" +
 		"id INT(10) NOT NULL AUTO_INCREMENT," +
 		FIELD_ARB_CHAIN + " VARCHAR(64)," +
@@ -42,6 +54,18 @@ const (
 		FIELD_STARTED_AT + " TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP," +
 		FIELD_FINISHED_AT + " TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP," +
 		FIELD_LASTED_FRAMES + " INT(10)," +
+		FIELD_SYMBOL_AB + " VARCHAR(64)," +
+		FIELD_SIDE_AB + " VARCHAR(64)," +
+		FIELD_QTY_AB + " FLOAT(16, 8)," +
+		FIELD_PRICE_AB + " FLOAT(16, 8)," +
+		FIELD_SYMBOL_BC + " VARCHAR(64)," +
+		FIELD_SIDE_BC + " VARCHAR(64)," +
+		FIELD_QTY_BC + " FLOAT(16, 8)," +
+		FIELD_PRICE_BC + " FLOAT(16, 8)," +
+		FIELD_SYMBOL_AC + " VARCHAR(64)," +
+		FIELD_SIDE_AC + " VARCHAR(64)," +
+		FIELD_QTY_AC + " FLOAT(16, 8)," +
+		FIELD_PRICE_AC + " FLOAT(16, 8)," +
 		"PRIMARY KEY (id)" +
 		");"
 	INSERT_ARB_STATE_QUERY = "INSERT INTO " + TABLE_NAME + "(" +
@@ -56,7 +80,19 @@ const (
 		FIELD_STARTED_AT + ","  +
 		FIELD_FINISHED_AT + "," +
 		FIELD_LASTED_FRAMES +
-		") VALUES(?,?,?,?,?,?,?,?,?,?,?)"
+		FIELD_SYMBOL_AB + "," +
+		FIELD_SIDE_AB + "," +
+		FIELD_QTY_AB + "," +
+		FIELD_PRICE_AB + "," +
+		FIELD_SYMBOL_BC + "," +
+		FIELD_SIDE_BC + "," +
+		FIELD_QTY_BC + "," +
+		FIELD_PRICE_BC + "," +
+		FIELD_SYMBOL_AC + "," +
+		FIELD_SIDE_AC + "," +
+		FIELD_QTY_AC + ",," +
+		FIELD_PRICE_AC + "," +
+		") VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
 
 	TIMESTAMP_FORMAT = "2006-01-02 15:04:05"
 )
@@ -94,6 +130,18 @@ func RecordArbStateMySQL(state *arb.State) {
 		state.StartTs.Format(TIMESTAMP_FORMAT),
 		state.LastUpdateTs.Format(TIMESTAMP_FORMAT),
 		state.GetFrameUpdateCount(),
+		state.Orders["AB"].Symbol,
+		string(state.Orders["AB"].Side),
+		state.Orders["AB"].Qty,
+		state.Orders["AB"].Price,
+		state.Orders["BC"].Symbol,
+		string(state.Orders["BC"].Side),
+		state.Orders["BC"].Qty,
+		state.Orders["BC"].Price,
+		state.Orders["AC"].Symbol,
+		string(state.Orders["AC"].Side),
+		state.Orders["AC"].Qty,
+		state.Orders["AC"].Price,
 	)
 	checkErr(err)
 }

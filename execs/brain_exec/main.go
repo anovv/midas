@@ -13,7 +13,6 @@ func initialize() {
 	logging.CreateTableIfNotExistsMySQL()
 	brain.RunUpdateAccountInfo()
 	brain.RunUpdateExchangeInfo()
-	brain.InitArbDetector()
 	brain.ScheduleTickerUpdates()
 	brain.SetupRequestReceiver()
 	defer brain.CleanupEyesHandler()

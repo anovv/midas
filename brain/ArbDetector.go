@@ -87,6 +87,7 @@ func runReportArb() {
 					arbStates.Delete(k)
 					// TODO async logging
 					logging.RecordArbStateMySQL(arbState)
+					logging.LogLineToFile(arbState.String(), logging.ARB_STATES_FILE_PATH)
 				}
 				return true
 			})

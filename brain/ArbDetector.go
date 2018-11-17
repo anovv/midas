@@ -85,9 +85,7 @@ func runReportArb() {
 				// we consider arb opportunity is gone
 				if time.Since(arbState.LastUpdateTs) > time.Duration(brainConfig.ARB_REPORT_UPDATE_THRESHOLD_MICROS) * time.Microsecond {
 					arbStates.Delete(k)
-					// TODO async logging
-					logging.RecordArbStateMySQL(arbState)
-					logging.LogLineToFile(arbState.String(), logging.ARB_STATES_FILE_PATH)
+					logging.SubmitArbState(arbState)
 				}
 				return true
 			})

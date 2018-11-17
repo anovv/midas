@@ -40,6 +40,7 @@ const (
 )
 
 const (
+	ARB_STATE_RECORDS_BUFFER_SIZE = 1000
 	DB_DRIVER = "mysql"
 	DB_USER = "root"
 	DB_NAME = "midas"
@@ -106,8 +107,15 @@ const (
 	TIMESTAMP_FORMAT = "2006-01-02 15:04:05"
 )
 
+var stateRecords = make(chan *arb.State, ARB_STATE_RECORDS_BUFFER_SIZE)
+
+// Puts arbState in a queue for async logging
+func SubmitArbState(state *arb.State) {
+	stateRecords<-state
+}
+
 // TODO better logger abstraction
-func RecordArbStateMySQL(state *arb.State) {
+func recordArbStateMySQL(state *arb.State) {
 	dbPass := configuration.ReadBrainConfig().MYSQL_PASSWORD
 	db, err := sql.Open(DB_DRIVER, DB_USER + ":" + dbPass + "@tcp(127.0.0.1:3306)/" + DB_NAME)
 	defer db.Close()
@@ -158,7 +166,12 @@ func RecordArbStateMySQL(state *arb.State) {
 	checkErr(err)
 }
 
-func CreateTableIfNotExistsMySQL() {
+func InitMySQLLogger() {
+	createTableIfNotExists()
+	startLoggingRoutine()
+}
+
+func createTableIfNotExists() {
 	dbPass := configuration.ReadBrainConfig().MYSQL_PASSWORD
 	db, err := sql.Open(DB_DRIVER, DB_USER + ":" + dbPass + "@tcp(127.0.0.1:3306)/")
 	defer db.Close()
@@ -181,6 +194,15 @@ func CreateTableIfNotExistsMySQL() {
 	if err != nil {
 		panic(err)
 	}
+}
+
+func startLoggingRoutine() {
+	go func() {
+		for {
+			state := <-stateRecords
+			recordArbStateMySQL(state)
+		}
+	}()
 }
 
 func checkErr(err error) bool {

@@ -10,7 +10,7 @@ func main() {
 }
 
 func initialize() {
-	logging.CreateTableIfNotExistsMySQL()
+	logging.InitMySQLLogger()
 	brain.RunUpdateAccountInfo()
 	brain.RunUpdateExchangeInfo()
 	brain.ScheduleTickerUpdates()

@@ -90,8 +90,8 @@ const (
 		FIELD_PRICE_BC + "," +
 		FIELD_SYMBOL_AC + "," +
 		FIELD_SIDE_AC + "," +
-		FIELD_QTY_AC + ",," +
-		FIELD_PRICE_AC + "," +
+		FIELD_QTY_AC + "," +
+		FIELD_PRICE_AC +
 		") VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
 
 	TIMESTAMP_FORMAT = "2006-01-02 15:04:05"
@@ -143,7 +143,7 @@ func RecordArbStateMySQL(state *arb.State) {
 		state.Orders["AC"].Qty,
 		state.Orders["AC"].Price,
 	)
-	panic(err)
+	checkErr(err)
 }
 
 func CreateTableIfNotExistsMySQL() {

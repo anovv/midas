@@ -134,11 +134,11 @@ func findArb(triangle *arb.Triangle) *arb.State {
 
 	// Check if prices form arbitrage
 	// A->B
-	qtyB, sideAB, tradeQtyAB, priceAB := simTrade(qtyA, triangle.PairAB.PairSymbol, triangle.CoinA.CoinSymbol, tickerAB)
+	qtyB, sideAB, orderQtyAB, priceAB := simTrade(qtyA, triangle.PairAB.PairSymbol, triangle.CoinA.CoinSymbol, tickerAB)
 	// B->C
-	qtyC, sideBC, tradeQtyBC, priceBC := simTrade(qtyB, triangle.PairBC.PairSymbol, triangle.CoinB.CoinSymbol, tickerBC)
+	qtyC, sideBC, orderQtyBC, priceBC := simTrade(qtyB, triangle.PairBC.PairSymbol, triangle.CoinB.CoinSymbol, tickerBC)
 	// C->A
-	newQtyA, sideAC, tradeQtyAC, priceAC := simTrade(qtyC, triangle.PairAC.PairSymbol, triangle.CoinC.CoinSymbol, tickerAC)
+	newQtyA, sideAC, orderQtyAC, priceAC := simTrade(qtyC, triangle.PairAC.PairSymbol, triangle.CoinC.CoinSymbol, tickerAC)
 
 	if newQtyA <= qtyA {
 		// No arb
@@ -160,64 +160,66 @@ func findArb(triangle *arb.Triangle) *arb.State {
 		balanceCinA = balanceC / priceAC
 	}
 
-	tradeQtyABinA := 0.0
+	orderQtyABinA := 0.0
 	if sideAB == common.SideSell {
-		tradeQtyABinA = tradeQtyAB * priceAB
+		orderQtyABinA = orderQtyAB * priceAB
 	} else {
-		tradeQtyABinA = tradeQtyAB / priceAB
+		orderQtyABinA = orderQtyAB / priceAB
 	}
 
-	tradeQtyACinA := 0.0
+	orderQtyACinA := 0.0
 	if sideAC == common.SideSell {
-		tradeQtyACinA = tradeQtyAC * priceAC
+		orderQtyACinA = orderQtyAC * priceAC
 	} else {
-		tradeQtyACinA = tradeQtyAC / priceAC
+		orderQtyACinA = orderQtyAC / priceAC
 	}
 
-	tradeQtyBCinA := 0.0
+	orderQtyBCinA := 0.0
 	if sideBC == common.SideSell {
 		if sideAB == common.SideSell {
-			tradeQtyBCinA = tradeQtyBC * priceAB
+			orderQtyBCinA = orderQtyBC * priceAB
 		} else {
-			tradeQtyBCinA = tradeQtyBC / priceAB
+			orderQtyBCinA = orderQtyBC / priceAB
 		}
 	} else {
 		if sideAC == common.SideSell {
-			tradeQtyBCinA = tradeQtyBC * priceAC
+			orderQtyBCinA = orderQtyBC * priceAC
 		} else {
-			tradeQtyBCinA = tradeQtyBC / priceAC
+			orderQtyBCinA = orderQtyBC / priceAC
 		}
 	}
 
 	minBalanceInA := math.Min(math.Min(balanceBinA, balanceCinA), balanceA)
-	minTradeQtyInA := math.Min(math.Min(tradeQtyABinA, tradeQtyACinA), tradeQtyBCinA)
+	minOrderQtyInA := math.Min(math.Min(orderQtyABinA, orderQtyACinA), orderQtyBCinA)
+	minOrderQtyInA = math.Min(minBalanceInA, minOrderQtyInA)
 
-	minTradeQtyInA = math.Min(minBalanceInA, minTradeQtyInA)
-
+	tradeQtyAB := 0.0
+	tradeQtyBC := 0.0
+	tradeQtyAC := 0.0
 	// Convert this qty back for each coin
 	if sideAB == common.SideSell {
-		tradeQtyAB = minTradeQtyInA
+		tradeQtyAB = minOrderQtyInA
 	} else {
-		tradeQtyAB = minTradeQtyInA * priceAB
+		tradeQtyAB = minOrderQtyInA * priceAB
 	}
 
 	if sideAC == common.SideSell {
-		tradeQtyAC = minTradeQtyInA
+		tradeQtyAC = minOrderQtyInA
 	} else {
-		tradeQtyAC = minTradeQtyInA * priceAC
+		tradeQtyAC = minOrderQtyInA * priceAC
 	}
 
 	if sideBC == common.SideSell {
 		if sideAB == common.SideSell {
-			tradeQtyBC = minTradeQtyInA / priceAB
+			tradeQtyBC = minOrderQtyInA / priceAB
 		} else {
-			tradeQtyBC = minTradeQtyInA * priceAB
+			tradeQtyBC = minOrderQtyInA * priceAB
 		}
 	} else {
 		if sideAC == common.SideSell {
-			tradeQtyBC = minTradeQtyInA / priceAC
+			tradeQtyBC = minOrderQtyInA / priceAC
 		} else {
-			tradeQtyBC = minTradeQtyInA * priceAC
+			tradeQtyBC = minOrderQtyInA * priceAC
 		}
 	}
 
@@ -248,14 +250,20 @@ func findArb(triangle *arb.Triangle) *arb.State {
 	profit := (newQtyA - qtyA)/qtyA
 
 	arbState := &arb.State{
-		QtyBefore: minTradeQtyInA,
-		QtyAfter: minTradeQtyInA * (1 + profit),
+		QtyBefore: minOrderQtyInA,
+		QtyAfter: minOrderQtyInA * (1 + profit),
 		ProfitRelative: profit,
 		Triangle: triangle,
 		StartTs: now,
 		LastUpdateTs: now,
 		FrameUpdateTsQueue: make([]time.Time, 0),
 		Orders: orders,
+		BalanceA: balanceA,
+		BalanceB: balanceB,
+		BalanceC: balanceC,
+		OrderQtyAB: orderQtyAB,
+		OrderQtyBC: orderQtyBC,
+		OrderQtyAC: orderQtyAC,
 	}
 
 	return arbState

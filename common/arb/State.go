@@ -15,6 +15,12 @@ type State struct {
 	LastUpdateTs time.Time
 	FrameUpdateTsQueue []time.Time // holds timestamps of frame updates
 	Orders map[string]*common.OrderRequest
+	BalanceA float64
+	BalanceB float64
+	BalanceC float64
+	OrderQtyAB float64
+	OrderQtyBC float64
+	OrderQtyAC float64
 }
 
 func (s *State) GetFrameUpdateCount() int {

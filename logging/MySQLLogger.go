@@ -11,29 +11,32 @@ import (
 
 // MySQL field names
 const (
-	FIELD_ARB_CHAIN = "arb_chain"
-	FIELD_QTY_BEFORE = "qty_before"
-	FIELD_QTY_AFTER = "qty_after"
+	FIELD_ARB_CHAIN                  = "arb_chain"
+	FIELD_QTY_BEFORE                 = "qty_before"
+	FIELD_QTY_AFTER                  = "qty_after"
 	FIELD_RELATIVE_PROFIT_PERCENTAGE = "relative_profit_percentage"
-	FIELD_LASTED_FOR_MS = "lasted_for_ms"
-	FIELD_COIN_A = "coin_a"
-	FIELD_COIN_B = "coin_b"
-	FIELD_COIN_C = "coin_c"
-	FIELD_STARTED_AT = "started_at"
-	FIELD_FINISHED_AT = "finished_at"
+	FIELD_LASTED_FOR_MS              = "lasted_for_ms"
+	FIELD_COIN_A                     = "coin_a"
+	FIELD_COIN_B        = "coin_b"
+	FIELD_COIN_C        = "coin_c"
+	FIELD_STARTED_AT    = "started_at"
+	FIELD_FINISHED_AT   = "finished_at"
 	FIELD_LASTED_FRAMES = "lasted_frames"
-	FIELD_SYMBOL_AB = "symbol_ab"
-	FIELD_SIDE_AB = "side_ab"
-	FIELD_QTY_AB = "qty_ab"
-	FIELD_PRICE_AB = "price_ab"
-	FIELD_SYMBOL_BC = "symbol_bc"
-	FIELD_SIDE_BC = "side_bc"
-	FIELD_QTY_BC = "qty_bc"
-	FIELD_PRICE_BC = "price_bc"
-	FIELD_SYMBOL_AC = "symbol_ac"
-	FIELD_SIDE_AC = "side_ac"
-	FIELD_QTY_AC = "qty_ac"
-	FIELD_PRICE_AC = "price_ac"
+	FIELD_SYMBOL_AB     = "symbol_ab"
+	FIELD_SIDE_AB       = "side_ab"
+	FIELD_TRADE_QTY_AB  = "trade_qty_ab"
+	FIELD_ORDER_QTY_AB  = "order_qty_ab"
+	FIELD_PRICE_AB      = "price_ab"
+	FIELD_SYMBOL_BC     = "symbol_bc"
+	FIELD_SIDE_BC       = "side_bc"
+	FIELD_TRADE_QTY_BC  = "trade_qty_bc"
+	FIELD_ORDER_QTY_BC  = "order_qty_bc"
+	FIELD_PRICE_BC      = "price_bc"
+	FIELD_SYMBOL_AC     = "symbol_ac"
+	FIELD_SIDE_AC       = "side_ac"
+	FIELD_TRADE_QTY_AC  = "trade_qty_ac"
+	FIELD_ORDER_QTY_AC  = "order_qty_ac"
+	FIELD_PRICE_AC      = "price_ac"
 )
 
 const (
@@ -56,15 +59,18 @@ const (
 		FIELD_LASTED_FRAMES + " INT(10)," +
 		FIELD_SYMBOL_AB + " VARCHAR(64)," +
 		FIELD_SIDE_AB + " VARCHAR(64)," +
-		FIELD_QTY_AB + " FLOAT(16, 8)," +
+		FIELD_TRADE_QTY_AB + " FLOAT(16, 8)," +
+		FIELD_ORDER_QTY_AB + " FLOAT(16, 8)," +
 		FIELD_PRICE_AB + " FLOAT(16, 8)," +
 		FIELD_SYMBOL_BC + " VARCHAR(64)," +
 		FIELD_SIDE_BC + " VARCHAR(64)," +
-		FIELD_QTY_BC + " FLOAT(16, 8)," +
+		FIELD_TRADE_QTY_BC + " FLOAT(16, 8)," +
+		FIELD_ORDER_QTY_BC + " FLOAT(16, 8)," +
 		FIELD_PRICE_BC + " FLOAT(16, 8)," +
 		FIELD_SYMBOL_AC + " VARCHAR(64)," +
 		FIELD_SIDE_AC + " VARCHAR(64)," +
-		FIELD_QTY_AC + " FLOAT(16, 8)," +
+		FIELD_TRADE_QTY_AC + " FLOAT(16, 8)," +
+		FIELD_ORDER_QTY_AC + " FLOAT(16, 8)," +
 		FIELD_PRICE_AC + " FLOAT(16, 8)," +
 		"PRIMARY KEY (id)" +
 		");"
@@ -82,17 +88,20 @@ const (
 		FIELD_LASTED_FRAMES + "," +
 		FIELD_SYMBOL_AB + "," +
 		FIELD_SIDE_AB + "," +
-		FIELD_QTY_AB + "," +
+		FIELD_TRADE_QTY_AB + "," +
+		FIELD_ORDER_QTY_AB + "," +
 		FIELD_PRICE_AB + "," +
 		FIELD_SYMBOL_BC + "," +
 		FIELD_SIDE_BC + "," +
-		FIELD_QTY_BC + "," +
+		FIELD_TRADE_QTY_BC + "," +
+		FIELD_ORDER_QTY_BC + "," +
 		FIELD_PRICE_BC + "," +
 		FIELD_SYMBOL_AC + "," +
 		FIELD_SIDE_AC + "," +
-		FIELD_QTY_AC + "," +
+		FIELD_TRADE_QTY_AC + "," +
+		FIELD_ORDER_QTY_AC + "," +
 		FIELD_PRICE_AC +
-		") VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+		") VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
 
 	TIMESTAMP_FORMAT = "2006-01-02 15:04:05"
 )
@@ -133,14 +142,17 @@ func RecordArbStateMySQL(state *arb.State) {
 		state.Orders["AB"].Symbol,
 		string(state.Orders["AB"].Side),
 		state.Orders["AB"].Qty,
+		state.OrderQtyAB,
 		state.Orders["AB"].Price,
 		state.Orders["BC"].Symbol,
 		string(state.Orders["BC"].Side),
 		state.Orders["BC"].Qty,
+		state.OrderQtyBC,
 		state.Orders["BC"].Price,
 		state.Orders["AC"].Symbol,
 		string(state.Orders["AC"].Side),
 		state.Orders["AC"].Qty,
+		state.OrderQtyAC,
 		state.Orders["AC"].Price,
 	)
 	checkErr(err)

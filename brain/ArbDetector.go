@@ -28,12 +28,12 @@ var arbStates = sync.Map{}
 var brainConfig = configuration.ReadBrainConfig()
 
 func RunArbDetector() {
-	InitArbDetector()
+	initArbDetector()
 	runReportArb()
 	runDetectArbBLOCKING()
 }
 
-func InitArbDetector() {
+func initArbDetector() {
 	log.Println("Initializing arb detector...")
 	if allPairs == nil {
 		panic("Arb detector error: pairs are not fetched")

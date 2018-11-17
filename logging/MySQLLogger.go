@@ -79,7 +79,7 @@ const (
 		FIELD_COIN_C + ","  +
 		FIELD_STARTED_AT + ","  +
 		FIELD_FINISHED_AT + "," +
-		FIELD_LASTED_FRAMES +
+		FIELD_LASTED_FRAMES + "," +
 		FIELD_SYMBOL_AB + "," +
 		FIELD_SIDE_AB + "," +
 		FIELD_QTY_AB + "," +

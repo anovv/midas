@@ -37,6 +37,9 @@ const (
 	FIELD_TRADE_QTY_AC  = "trade_qty_ac"
 	FIELD_ORDER_QTY_AC  = "order_qty_ac"
 	FIELD_PRICE_AC      = "price_ac"
+	FIELD_BALANCE_A 	= "balance_a"
+	FIELD_BALANCE_B 	= "balance_b"
+	FIELD_BALANCE_C 	= "balance_c"
 )
 
 const (
@@ -73,6 +76,9 @@ const (
 		FIELD_TRADE_QTY_AC + " FLOAT(16, 8)," +
 		FIELD_ORDER_QTY_AC + " FLOAT(16, 8)," +
 		FIELD_PRICE_AC + " FLOAT(16, 8)," +
+		FIELD_BALANCE_A + " FLOAT(16, 8)," +
+		FIELD_BALANCE_B + " FLOAT(16, 8)," +
+		FIELD_BALANCE_C + " FLOAT(16, 8)," +
 		"PRIMARY KEY (id)" +
 		");"
 	INSERT_ARB_STATE_QUERY = "INSERT INTO " + TABLE_NAME + "(" +
@@ -101,7 +107,10 @@ const (
 		FIELD_SIDE_AC + "," +
 		FIELD_TRADE_QTY_AC + "," +
 		FIELD_ORDER_QTY_AC + "," +
-		FIELD_PRICE_AC +
+		FIELD_PRICE_AC + "," +
+		FIELD_BALANCE_A + "," +
+		FIELD_BALANCE_B + "," +
+		FIELD_BALANCE_C +
 		") VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
 
 	TIMESTAMP_FORMAT = "2006-01-02 15:04:05"
@@ -162,6 +171,9 @@ func recordArbStateMySQL(state *arb.State) {
 		state.Orders["AC"].Qty,
 		state.OrderQtyAC,
 		state.Orders["AC"].Price,
+		state.BalanceA,
+		state.BalanceB,
+		state.BalanceC,
 	)
 	checkErr(err)
 }

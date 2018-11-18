@@ -62,19 +62,19 @@ const (
 		FIELD_FINISHED_AT + " TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP," +
 		FIELD_LASTED_FRAMES + " INT(10)," +
 		FIELD_SYMBOL_AB + " VARCHAR(64)," +
-		FIELD_SIDE_AB + " VARCHAR(64)," +
-		FIELD_TRADE_QTY_AB + " FLOAT(16, 8)," +
-		FIELD_ORDER_QTY_AB + " FLOAT(16, 8)," +
-		FIELD_PRICE_AB + " FLOAT(16, 8)," +
 		FIELD_SYMBOL_BC + " VARCHAR(64)," +
-		FIELD_SIDE_BC + " VARCHAR(64)," +
-		FIELD_TRADE_QTY_BC + " FLOAT(16, 8)," +
-		FIELD_ORDER_QTY_BC + " FLOAT(16, 8)," +
-		FIELD_PRICE_BC + " FLOAT(16, 8)," +
 		FIELD_SYMBOL_AC + " VARCHAR(64)," +
+		FIELD_SIDE_AB + " VARCHAR(64)," +
+		FIELD_SIDE_BC + " VARCHAR(64)," +
 		FIELD_SIDE_AC + " VARCHAR(64)," +
+		FIELD_TRADE_QTY_AB + " FLOAT(16, 8)," +
+		FIELD_TRADE_QTY_BC + " FLOAT(16, 8)," +
 		FIELD_TRADE_QTY_AC + " FLOAT(16, 8)," +
+		FIELD_ORDER_QTY_AB + " FLOAT(16, 8)," +
+		FIELD_ORDER_QTY_BC + " FLOAT(16, 8)," +
 		FIELD_ORDER_QTY_AC + " FLOAT(16, 8)," +
+		FIELD_PRICE_AB + " FLOAT(16, 8)," +
+		FIELD_PRICE_BC + " FLOAT(16, 8)," +
 		FIELD_PRICE_AC + " FLOAT(16, 8)," +
 		FIELD_BALANCE_A + " FLOAT(16, 8)," +
 		FIELD_BALANCE_B + " FLOAT(16, 8)," +
@@ -94,19 +94,19 @@ const (
 		FIELD_FINISHED_AT + "," +
 		FIELD_LASTED_FRAMES + "," +
 		FIELD_SYMBOL_AB + "," +
-		FIELD_SIDE_AB + "," +
-		FIELD_TRADE_QTY_AB + "," +
-		FIELD_ORDER_QTY_AB + "," +
-		FIELD_PRICE_AB + "," +
 		FIELD_SYMBOL_BC + "," +
-		FIELD_SIDE_BC + "," +
-		FIELD_TRADE_QTY_BC + "," +
-		FIELD_ORDER_QTY_BC + "," +
-		FIELD_PRICE_BC + "," +
 		FIELD_SYMBOL_AC + "," +
+		FIELD_SIDE_AB + "," +
+		FIELD_SIDE_BC + "," +
 		FIELD_SIDE_AC + "," +
+		FIELD_TRADE_QTY_AB + "," +
+		FIELD_TRADE_QTY_BC + "," +
 		FIELD_TRADE_QTY_AC + "," +
+		FIELD_ORDER_QTY_AB + "," +
+		FIELD_ORDER_QTY_BC + "," +
 		FIELD_ORDER_QTY_AC + "," +
+		FIELD_PRICE_AB + "," +
+		FIELD_PRICE_BC + "," +
 		FIELD_PRICE_AC + "," +
 		FIELD_BALANCE_A + "," +
 		FIELD_BALANCE_B + "," +
@@ -157,19 +157,19 @@ func recordArbStateMySQL(state *arb.State) {
 		state.LastUpdateTs.Format(TIMESTAMP_FORMAT),
 		state.GetFrameUpdateCount(),
 		state.Orders["AB"].Symbol,
-		string(state.Orders["AB"].Side),
-		state.Orders["AB"].Qty,
-		state.OrderQtyAB,
-		state.Orders["AB"].Price,
 		state.Orders["BC"].Symbol,
-		string(state.Orders["BC"].Side),
-		state.Orders["BC"].Qty,
-		state.OrderQtyBC,
-		state.Orders["BC"].Price,
 		state.Orders["AC"].Symbol,
+		string(state.Orders["AB"].Side),
+		string(state.Orders["BC"].Side),
 		string(state.Orders["AC"].Side),
+		state.Orders["AB"].Qty,
+		state.Orders["BC"].Qty,
 		state.Orders["AC"].Qty,
+		state.OrderQtyAB,
+		state.OrderQtyBC,
 		state.OrderQtyAC,
+		state.Orders["AB"].Price,
+		state.Orders["BC"].Price,
 		state.Orders["AC"].Price,
 		state.BalanceA,
 		state.BalanceB,

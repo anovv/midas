@@ -131,12 +131,12 @@ func findArb(triangle *arb.Triangle) *arb.State {
 	qtyA := 1.0 // we use arbitrary qty first, if prices form arbitrage we calculate tradable qty later
 
 	// Check if prices form arbitrage
-	// A->B
-	qtyB, sideAB, orderQtyAB, priceAB := simTrade(qtyA, triangle.PairAB.PairSymbol, triangle.CoinA.CoinSymbol, tickerAB)
-	// B->C
-	qtyC, sideBC, orderQtyBC, priceBC := simTrade(qtyB, triangle.PairBC.PairSymbol, triangle.CoinB.CoinSymbol, tickerBC)
-	// C->A
-	newQtyA, sideAC, orderQtyAC, priceAC := simTrade(qtyC, triangle.PairAC.PairSymbol, triangle.CoinC.CoinSymbol, tickerAC)
+	// A->B eth->btc
+	qtyB, sideAB, orderQtyAB, priceAB := simTradeWithTicker(qtyA, triangle.CoinA, tickerAB, true)
+	// B->C btc->dnt
+	qtyC, sideBC, orderQtyBC, priceBC := simTradeWithTicker(qtyB, triangle.CoinB, tickerBC, true)
+	// C->A dnt->eth
+	newQtyA, sideAC, orderQtyAC, priceAC := simTradeWithTicker(qtyC, triangle.CoinC, tickerAC, true)
 
 	if newQtyA <= qtyA {
 		// No arb
@@ -144,81 +144,54 @@ func findArb(triangle *arb.Triangle) *arb.State {
 	}
 
 	// Find max tradable qty equivalent in A
-	balanceBinA := 0.0
-	if sideAB == common.SideSell {
-		balanceBinA = balanceB * priceAB
+	balanceBinA := simTradeWithPrice(balanceB, priceAB, triangle.CoinB, triangle.PairAB)
+	balanceCinA := simTradeWithPrice(balanceC, priceAC, triangle.CoinC, triangle.PairAC)
+
+	var orderQtyABinA float64
+	if isBaseCoin(triangle.CoinA, triangle.PairAB) {
+		orderQtyABinA = orderQtyAB
 	} else {
-		balanceBinA = balanceB / priceAB
+		orderQtyABinA = simTradeWithPrice(orderQtyAB, priceAB, triangle.CoinB, triangle.PairAB)
 	}
 
-	balanceCinA := 0.0
-	if sideAC == common.SideSell {
-		balanceCinA = balanceC * priceAC
+	var orderQtyAСinA float64
+	if isBaseCoin(triangle.CoinA, triangle.PairAC) {
+		orderQtyAСinA = orderQtyAC
 	} else {
-		balanceCinA = balanceC / priceAC
+		orderQtyAСinA = simTradeWithPrice(orderQtyAC, priceAC, triangle.CoinC, triangle.PairAC)
 	}
 
-	orderQtyABinA := 0.0
-	if sideAB == common.SideSell {
-		orderQtyABinA = orderQtyAB * priceAB
+	var orderQtyBCinA float64
+	if isBaseCoin(triangle.CoinB, triangle.PairBC) {
+		orderQtyBCinA = simTradeWithPrice(orderQtyBC, priceAB, triangle.CoinB, triangle.PairAB)
 	} else {
-		orderQtyABinA = orderQtyAB / priceAB
-	}
-
-	orderQtyACinA := 0.0
-	if sideAC == common.SideSell {
-		orderQtyACinA = orderQtyAC * priceAC
-	} else {
-		orderQtyACinA = orderQtyAC / priceAC
-	}
-
-	orderQtyBCinA := 0.0
-	if sideBC == common.SideSell {
-		if sideAB == common.SideSell {
-			orderQtyBCinA = orderQtyBC * priceAB
-		} else {
-			orderQtyBCinA = orderQtyBC / priceAB
-		}
-	} else {
-		if sideAC == common.SideSell {
-			orderQtyBCinA = orderQtyBC * priceAC
-		} else {
-			orderQtyBCinA = orderQtyBC / priceAC
-		}
+		orderQtyBCinA = simTradeWithPrice(orderQtyBC, priceAC, triangle.CoinC, triangle.PairAC)
 	}
 
 	minBalanceInA := math.Min(math.Min(balanceBinA, balanceCinA), balanceA)
-	minOrderQtyInA := math.Min(math.Min(orderQtyABinA, orderQtyACinA), orderQtyBCinA)
+	minOrderQtyInA := math.Min(math.Min(orderQtyABinA, orderQtyAСinA), orderQtyBCinA)
 	minOrderQtyInA = math.Min(minBalanceInA, minOrderQtyInA)
 
-	tradeQtyAB := 0.0
-	tradeQtyBC := 0.0
-	tradeQtyAC := 0.0
+	var tradeQtyAB float64
+	var tradeQtyBC float64
+	var tradeQtyAC float64
 	// Convert this qty back for each coin
-	if sideAB == common.SideSell {
+	if isBaseCoin(triangle.CoinA, triangle.PairAB) {
 		tradeQtyAB = minOrderQtyInA
 	} else {
-		tradeQtyAB = minOrderQtyInA * priceAB
+		tradeQtyAB = simTradeWithPrice(minOrderQtyInA, priceAB, triangle.CoinA, triangle.PairAB)
 	}
 
-	if sideAC == common.SideSell {
+	if isBaseCoin(triangle.CoinA, triangle.PairAC) {
 		tradeQtyAC = minOrderQtyInA
 	} else {
-		tradeQtyAC = minOrderQtyInA * priceAC
+		tradeQtyAC = simTradeWithPrice(minOrderQtyInA, priceAC, triangle.CoinA, triangle.PairAC)
 	}
 
-	if sideBC == common.SideSell {
-		if sideAB == common.SideSell {
-			tradeQtyBC = minOrderQtyInA / priceAB
-		} else {
-			tradeQtyBC = minOrderQtyInA * priceAB
-		}
+	if isBaseCoin(triangle.CoinB, triangle.PairBC) {
+		tradeQtyBC = simTradeWithPrice(minOrderQtyInA, priceAB, triangle.CoinA, triangle.PairAB)
 	} else {
-		if sideAC == common.SideSell {
-			tradeQtyBC = minOrderQtyInA / priceAC
-		} else {
-			tradeQtyBC = minOrderQtyInA * priceAC
-		}
+		tradeQtyBC = simTradeWithPrice(minOrderQtyInA, priceAC, triangle.CoinA, triangle.PairAC)
 	}
 
 	orders := make(map[string]*common.OrderRequest)
@@ -267,22 +240,55 @@ func findArb(triangle *arb.Triangle) *arb.State {
 	return arbState
 }
 
-// given rate B/A with bid price (or A/B with ask price),
+func isBaseCoin(
+	coinA common.Coin,
+	pair *common.CoinPair) bool {
+	if pair.BaseCoin.CoinSymbol == coinA.CoinSymbol {
+		return true
+	} else if pair.QuoteCoin.CoinSymbol == coinA.CoinSymbol{
+		return false
+	} else {
+		panic("Incorrect coin structure")
+	}
+}
+
+func simTradeWithPrice(
+	qty float64,
+	price float64,
+	coinA common.Coin,
+	pair *common.CoinPair) float64 {
+	if isBaseCoin(coinA, pair) {
+		return qty * price
+	} else {
+		return qty / price
+	}
+}
+
+// given ticker with bid price and ask price,
 // trades qtyA of A for B and returns qtyB
-func simTrade(
+func simTradeWithTicker(
 	qtyA float64,
-	pairSymbol string,
-	coinASymbol string,
-	ticker *common.Ticker) (float64, common.OrderSide, float64, float64) {
+	coinA common.Coin,
+	ticker *common.Ticker,
+	withFee bool) (float64, common.OrderSide, float64, float64) {
 	side := common.SideSell
-	if strings.HasSuffix(pairSymbol, coinASymbol) {
+	if strings.HasSuffix(ticker.Symbol, coinA.CoinSymbol) {
 		side = common.SideBuy
 	}
 
+	qty := 0.0
 	if side == common.SideBuy {
-		return applyFee(qtyA * ticker.BidPrice), side, ticker.BidQty, ticker.BidPrice
+		qty = qtyA / ticker.AskPrice
 	} else {
-		return applyFee(qtyA / ticker.AskPrice), side, ticker.AskQty, ticker.AskPrice
+		qty = qtyA * ticker.BidPrice
+	}
+	if withFee {
+		qty = applyFee(qty)
+	}
+	if side == common.SideBuy {
+		return qty, side, ticker.AskQty, ticker.AskPrice
+	} else {
+		return qty, side, ticker.BidQty, ticker.BidPrice
 	}
 }
 

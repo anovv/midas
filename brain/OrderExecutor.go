@@ -100,7 +100,7 @@ func SubmitOrders(state *arb.State) {
 					},
 				})
 			} else {
-				log.Println("Order " + res.Symbol + " error: " + err.Error())
+				log.Println("Order " + order.Symbol + " error: " + err.Error())
 				logging.QueueEvent(&logging.Event{
 					EventType: logging.EventTypeOrderStatusChange,
 					Value: &common.OrderStatusChangeEvent{

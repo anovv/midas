@@ -7,6 +7,7 @@ import (
 )
 
 type State struct {
+	Id string
 	QtyBefore float64
 	QtyAfter float64
 	ProfitRelative float64

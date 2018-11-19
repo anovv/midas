@@ -85,7 +85,10 @@ func runReportArb() {
 				// we consider arb opportunity is gone
 				if time.Since(arbState.LastUpdateTs) > time.Duration(brainConfig.ARB_REPORT_UPDATE_THRESHOLD_MICROS) * time.Microsecond {
 					arbStates.Delete(k)
-					logging.SubmitArbState(arbState)
+					logging.QueueEvent(&logging.Event{
+						EventType: logging.EventTypeArbState,
+						Value: arbState,
+					})
 				}
 				return true
 			})
@@ -99,6 +102,7 @@ func runDetectArbBLOCKING() {
 	for {
 		for _, triangle := range arbTriangles {
 			arbState := findArb(triangle)
+			// TODO build queueing system
 			if arbState != nil {
 				arbStateKey := triangle.Key + "_" + common.FloatToString(arbState.ProfitRelative)
 				res, loaded := arbStates.LoadOrStore(arbStateKey, arbState)
@@ -106,9 +110,19 @@ func runDetectArbBLOCKING() {
 					arbState := res.(*arb.State)
 					arbState.LastUpdateTs = time.Now()
 				}
+
+				// TODO is it correct?
+				if filterArbStateForExecution(arbState){
+					SubmitOrders(arbState)
+				}
 			}
 		}
 	}
+}
+
+func filterArbStateForExecution(state *arb.State) bool {
+	// TODO min notional here?
+	return state.ProfitRelative > 0.0001 && state.GetFrameUpdateCount() > 0
 }
 
 func findArb(triangle *arb.Triangle) *arb.State {
@@ -194,33 +208,37 @@ func findArb(triangle *arb.Triangle) *arb.State {
 		tradeQtyBC = simTradeWithPrice(minOrderQtyInA, priceAC, triangle.CoinA, triangle.PairAC)
 	}
 
+	// TODO check filters here?
 	orders := make(map[string]*common.OrderRequest)
 	orders["AB"] = &common.OrderRequest{
 		triangle.PairAB.PairSymbol,
 		sideAB,
 		common.TypeLimit,
-		tradeQtyAB,
+		FormatQty(triangle.PairAB.PairSymbol, tradeQtyAB),
 		priceAB,
 	}
 	orders["BC"] = &common.OrderRequest{
 		triangle.PairBC.PairSymbol,
 		sideBC,
 		common.TypeLimit,
-		tradeQtyBC,
+		FormatQty(triangle.PairBC.PairSymbol, tradeQtyBC),
 		priceBC,
 	}
 	orders["AC"] = &common.OrderRequest{
 		triangle.PairAC.PairSymbol,
 		sideAC,
 		common.TypeLimit,
-		tradeQtyAC,
+		FormatQty(triangle.PairAC.PairSymbol, tradeQtyAC),
 		priceAC,
 	}
 
 	now := time.Now()
 	profit := (newQtyA - qtyA)/qtyA
 
+	id := triangle.Key + "_" + common.FloatToString(profit) + "_" + strconv.FormatInt(common.UnixMillis(now), 10)
+
 	arbState := &arb.State{
+		Id: id,
 		QtyBefore: minOrderQtyInA,
 		QtyAfter: minOrderQtyInA * (1 + profit),
 		ProfitRelative: profit,

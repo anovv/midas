@@ -1,6 +1,8 @@
 package common
 
-import "time"
+import (
+	"time"
+)
 
 type OrderStatus string
 
@@ -20,6 +22,7 @@ var (
 	StatusPendingCancel   = OrderStatus("PENDING_CANCEL")
 	StatusRejected        = OrderStatus("REJECTED")
 	StatusExpired         = OrderStatus("EXPIRED")
+	StatusError             = OrderStatus("ERROR")
 
 	TypeLimit  = OrderType("LIMIT")
 	TypeMarket = OrderType("MARKET")
@@ -33,8 +36,28 @@ var (
 	RespTypeAck = OrderRespType("ACK")
 	RespTypeResult = OrderRespType("RESULT")
 	RespTypeFull = OrderRespType("FULL")
-
 )
+
+
+type OrderStatusChangeEvent struct {
+	OrderStatus OrderStatus
+	ArbStateId string
+	ClientOrderId string
+	Symbol string
+	Side OrderSide
+	Type OrderType
+	Price         float64
+	OrigQty       float64
+	ExecutedQty   float64
+	CumulativeQuoteQty float64
+	TimeInForce   TimeInForce
+	Fills 		  []*Fill
+	ErrorMessage string
+	TransactTime  time.Time
+	BalanceA float64
+	BalanceB float64
+	BalanceC float64
+}
 
 type OrderRequest struct {
 	Symbol string

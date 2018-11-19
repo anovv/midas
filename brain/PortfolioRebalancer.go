@@ -23,9 +23,6 @@ const (
 
 	// how much we tolerate for real balance to diverge from estimated btc value to NOT execute a rebalance trade
 	EXECUTION_THRESHOLD = 0.1
-
-	// indicates if rebalancer is launched in simulation mode
-	TEST_MODE = true
 )
 
 func RebalancePortfolio() {
@@ -195,7 +192,7 @@ func executeTrades(scheduledTrades []*common.OrderRequest) {
 			orderRequest.Price,
 			clientOrderId,
 			ts,
-			TEST_MODE,
+			EXECUTION_MODE_TEST,
 		)
 
 		if err != nil {

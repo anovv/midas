@@ -7,21 +7,37 @@ import (
 	"midas/configuration"
 	"log"
 	"time"
+	"midas/common"
+	"encoding/json"
 )
+
+type EventType string
+
+var (
+	EventTypeArbState          = EventType("ARB_STATE")
+	EventTypeOrderStatusChange = EventType("ORDER_STATUS_CHANGE")
+)
+
+type Event struct{
+	EventType EventType
+	Value interface{}
+}
 
 // MySQL field names
 const (
+	// arb_states
+	FIELD_ARB_STATE_ID               = "arb_state_id"
 	FIELD_ARB_CHAIN                  = "arb_chain"
 	FIELD_QTY_BEFORE                 = "qty_before"
 	FIELD_QTY_AFTER                  = "qty_after"
 	FIELD_RELATIVE_PROFIT_PERCENTAGE = "relative_profit_percentage"
 	FIELD_LASTED_FOR_MS              = "lasted_for_ms"
 	FIELD_COIN_A                     = "coin_a"
-	FIELD_COIN_B        = "coin_b"
-	FIELD_COIN_C        = "coin_c"
-	FIELD_STARTED_AT    = "started_at"
-	FIELD_FINISHED_AT   = "finished_at"
-	FIELD_LASTED_FRAMES = "lasted_frames"
+	FIELD_COIN_B                     = "coin_b"
+	FIELD_COIN_C                     = "coin_c"
+	FIELD_STARTED_AT                 = "started_at"
+	FIELD_FINISHED_AT                = "finished_at"
+	FIELD_LASTED_FRAMES              = "lasted_frames"
 	FIELD_SYMBOL_AB     = "symbol_ab"
 	FIELD_SIDE_AB       = "side_ab"
 	FIELD_TRADE_QTY_AB  = "trade_qty_ab"
@@ -37,19 +53,41 @@ const (
 	FIELD_TRADE_QTY_AC  = "trade_qty_ac"
 	FIELD_ORDER_QTY_AC  = "order_qty_ac"
 	FIELD_PRICE_AC      = "price_ac"
-	FIELD_BALANCE_A 	= "balance_a"
-	FIELD_BALANCE_B 	= "balance_b"
-	FIELD_BALANCE_C 	= "balance_c"
+	FIELD_BALANCE_A                  = "balance_a"
+	FIELD_BALANCE_B                  = "balance_b"
+	FIELD_BALANCE_C                  = "balance_c"
+
+	// order_events
+	FIELD_ORDER_STATUS = "order_status"
+	FIELD_CLIENT_ORDER_ID = "client_order_id"
+	FIELD_SYMBOL = "symbol"
+	FIELD_SIDE = "side"
+	FIELD_PRICE = "price"
+	FIELD_ORIG_QTY = "orig_qty"
+	FIELD_EXECUTED_QTY = "executed_qty"
+	FIELD_CUMULATIVE_QUOTE_QTY = "cumulative_quote_qty"
+	FIELD_TIME_IN_FORCE = "time_in_force"
+	FIELD_FILLS = "fills"
+	FIELD_ERROR_MESSAGE = "error_message"
+	FIELD_TRANSACT_TIME = "transact_time"
 )
 
+// Common
 const (
-	ARB_STATE_RECORDS_BUFFER_SIZE = 1000
+	EVENT_QUEUE_SIZE = 1000
 	DB_DRIVER = "mysql"
 	DB_USER = "root"
 	DB_NAME = "midas"
-	TABLE_NAME = "trade_and_arb_state_binance"
-	CREATE_TABLE_QUERY = "CREATE TABLE IF NOT EXISTS " + TABLE_NAME + "(" +
+	TIMESTAMP_FORMAT = "2006-01-02 15:04:05"
+)
+
+// Create table queries
+const (
+	// arb_states
+	TABLE_ARB_STATES_NAME = "arb_states"
+	CREATE_TABLE_ARB_STATES_QUERY = "CREATE TABLE IF NOT EXISTS " + TABLE_ARB_STATES_NAME + "(" +
 		"id INT(10) NOT NULL AUTO_INCREMENT," +
+		FIELD_ARB_STATE_ID + " VARCHAR(64)," +
 		FIELD_ARB_CHAIN + " VARCHAR(64)," +
 		FIELD_QTY_BEFORE + " FLOAT(16, 8)," +
 		FIELD_QTY_AFTER + " FLOAT(16, 8)," +
@@ -81,7 +119,36 @@ const (
 		FIELD_BALANCE_C + " FLOAT(16, 8)," +
 		"PRIMARY KEY (id)" +
 		");"
-	INSERT_ARB_STATE_QUERY = "INSERT INTO " + TABLE_NAME + "(" +
+
+	// order_events
+	TABLE_ORDER_EVENTS_NAME = "order_events"
+	CREATE_ORDER_EVENTS_QUERY = "CREATE TABLE IF NOT EXISTS " + TABLE_ORDER_EVENTS_NAME + "(" +
+		"id INT(10) NOT NULL AUTO_INCREMENT," +
+		FIELD_ORDER_STATUS + " VARCHAR(64)," +
+		FIELD_ARB_STATE_ID + " VARCHAR(64)," +
+		FIELD_CLIENT_ORDER_ID + " VARCHAR(64)," +
+		FIELD_SYMBOL + " VARCHAR(64)," +
+		FIELD_SIDE + " VARCHAR(64)," +
+		FIELD_PRICE + " FLOAT(16, 8)," +
+		FIELD_ORIG_QTY + " FLOAT(16, 8)," +
+		FIELD_EXECUTED_QTY + " FLOAT(16, 8)," +
+		FIELD_CUMULATIVE_QUOTE_QTY + " FLOAT(16, 8)," +
+		FIELD_TIME_IN_FORCE + " VARCHAR(64)," +
+		FIELD_FILLS + " VARCHAR(64)," +
+		FIELD_ERROR_MESSAGE + " VARCHAR(64)," +
+		FIELD_TRANSACT_TIME + " TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP," +
+		FIELD_BALANCE_A + " FLOAT(16, 8)," +
+		FIELD_BALANCE_B + " FLOAT(16, 8)," +
+		FIELD_BALANCE_C + " FLOAT(16, 8)," +
+		"PRIMARY KEY (id)" +
+		");"
+)
+
+// Insert queries
+const (
+	// arb_states
+	INSERT_ARB_STATE_QUERY = "INSERT INTO " + TABLE_ARB_STATES_NAME + "(" +
+		FIELD_ARB_STATE_ID + ","  +
 		FIELD_ARB_CHAIN + ","  +
 		FIELD_QTY_BEFORE + ","  +
 		FIELD_QTY_AFTER + ","  +
@@ -111,20 +178,87 @@ const (
 		FIELD_BALANCE_A + "," +
 		FIELD_BALANCE_B + "," +
 		FIELD_BALANCE_C +
-		") VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+		") VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
 
-	TIMESTAMP_FORMAT = "2006-01-02 15:04:05"
+	// order_events
+	INSERT_ORDER_EVENT_QUERY = "INSERT INTO " + TABLE_ORDER_EVENTS_NAME + "(" +
+		FIELD_ORDER_STATUS + "," +
+		FIELD_ARB_STATE_ID + "," +
+		FIELD_CLIENT_ORDER_ID + "," +
+		FIELD_SYMBOL + "," +
+		FIELD_SIDE + "," +
+		FIELD_PRICE + "," +
+		FIELD_ORIG_QTY + "," +
+		FIELD_EXECUTED_QTY + "," +
+		FIELD_CUMULATIVE_QUOTE_QTY + "," +
+		FIELD_TIME_IN_FORCE + "," +
+		FIELD_FILLS + "," +
+		FIELD_ERROR_MESSAGE + "," +
+		FIELD_TRANSACT_TIME + "," +
+		FIELD_BALANCE_A + "," +
+		FIELD_BALANCE_B + "," +
+		FIELD_BALANCE_C +
+		") VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
 )
 
-var stateRecords = make(chan *arb.State, ARB_STATE_RECORDS_BUFFER_SIZE)
+var eventQueue = make(chan *Event, EVENT_QUEUE_SIZE)
 
-// Puts arbState in a queue for async logging
-func SubmitArbState(state *arb.State) {
-	stateRecords<-state
+func InitMySQLLogger() {
+	createTableIfNotExists(CREATE_TABLE_ARB_STATES_QUERY)
+	createTableIfNotExists(CREATE_ORDER_EVENTS_QUERY)
+	startLoggingRoutine()
 }
 
-// TODO better logger abstraction
-func recordArbStateMySQL(state *arb.State) {
+// Puts arbState in a queue for async logging
+func QueueEvent(event *Event) {
+	eventQueue <-event
+}
+
+func recordOrderStatusChangedEvent(orderEvent *common.OrderStatusChangeEvent) {
+	dbPass := configuration.ReadBrainConfig().MYSQL_PASSWORD
+	db, err := sql.Open(DB_DRIVER, DB_USER + ":" + dbPass + "@tcp(127.0.0.1:3306)/" + DB_NAME)
+	defer db.Close()
+
+	if checkErr(err) {
+		return
+	}
+
+	stmt, err := db.Prepare(INSERT_ORDER_EVENT_QUERY)
+
+	if checkErr(err) {
+		return
+	}
+	fillsJson, err := json.Marshal(orderEvent.Fills)
+	var fillsStr string
+	if err != nil {
+		fillsStr = "Error marshaling fills: " + err.Error()
+	} else {
+		fillsStr = string(fillsJson)
+	}
+
+	_, err = stmt.Exec(
+		string(orderEvent.OrderStatus),
+		string(orderEvent.ArbStateId),
+		string(orderEvent.ClientOrderId),
+		string(orderEvent.Symbol),
+		string(orderEvent.Side),
+		string(orderEvent.Type),
+		orderEvent.Price,
+		orderEvent.OrigQty,
+		orderEvent.ExecutedQty,
+		orderEvent.CumulativeQuoteQty,
+		string(orderEvent.TimeInForce),
+		fillsStr,
+		orderEvent.ErrorMessage,
+		orderEvent.TransactTime.Format(TIMESTAMP_FORMAT),
+		orderEvent.BalanceA,
+		orderEvent.BalanceB,
+		orderEvent.BalanceC,
+	)
+	checkErr(err)
+}
+
+func recordArbState(state *arb.State) {
 	dbPass := configuration.ReadBrainConfig().MYSQL_PASSWORD
 	db, err := sql.Open(DB_DRIVER, DB_USER + ":" + dbPass + "@tcp(127.0.0.1:3306)/" + DB_NAME)
 	defer db.Close()
@@ -145,6 +279,7 @@ func recordArbStateMySQL(state *arb.State) {
 		state.Triangle.CoinA.CoinSymbol
 	lastedForMs := int64(state.LastUpdateTs.Sub(state.StartTs)/time.Millisecond)
 	_, err = stmt.Exec(
+		state.Id,
 		arbChain,
 		state.QtyBefore,
 		state.QtyAfter,
@@ -178,12 +313,7 @@ func recordArbStateMySQL(state *arb.State) {
 	checkErr(err)
 }
 
-func InitMySQLLogger() {
-	createTableIfNotExists()
-	startLoggingRoutine()
-}
-
-func createTableIfNotExists() {
+func createTableIfNotExists(createTableQuery string) {
 	dbPass := configuration.ReadBrainConfig().MYSQL_PASSWORD
 	db, err := sql.Open(DB_DRIVER, DB_USER + ":" + dbPass + "@tcp(127.0.0.1:3306)/")
 	defer db.Close()
@@ -202,7 +332,7 @@ func createTableIfNotExists() {
 		panic(err)
 	}
 
-	_,err = db.Exec(CREATE_TABLE_QUERY)
+	_,err = db.Exec(createTableQuery)
 	if err != nil {
 		panic(err)
 	}
@@ -211,8 +341,15 @@ func createTableIfNotExists() {
 func startLoggingRoutine() {
 	go func() {
 		for {
-			state := <-stateRecords
-			recordArbStateMySQL(state)
+			event := <-eventQueue
+			switch event.EventType {
+			case EventTypeArbState:
+				recordArbState(event.Value.(*arb.State))
+			case EventTypeOrderStatusChange:
+				recordOrderStatusChangedEvent(event.Value.(*common.OrderStatusChangeEvent))
+			default:
+				panic("Unsupported logger type")
+			}
 		}
 	}()
 }

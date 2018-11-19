@@ -62,6 +62,7 @@ const (
 	FIELD_CLIENT_ORDER_ID = "client_order_id"
 	FIELD_SYMBOL = "symbol"
 	FIELD_SIDE = "side"
+	FIELD_TYPE = "type"
 	FIELD_PRICE = "price"
 	FIELD_ORIG_QTY = "orig_qty"
 	FIELD_EXECUTED_QTY = "executed_qty"
@@ -129,6 +130,7 @@ const (
 		FIELD_CLIENT_ORDER_ID + " VARCHAR(64)," +
 		FIELD_SYMBOL + " VARCHAR(64)," +
 		FIELD_SIDE + " VARCHAR(64)," +
+		FIELD_TYPE + " VARCHAR(64)," +
 		FIELD_PRICE + " FLOAT(16, 8)," +
 		FIELD_ORIG_QTY + " FLOAT(16, 8)," +
 		FIELD_EXECUTED_QTY + " FLOAT(16, 8)," +
@@ -178,7 +180,7 @@ const (
 		FIELD_BALANCE_A + "," +
 		FIELD_BALANCE_B + "," +
 		FIELD_BALANCE_C +
-		") VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+		") VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
 
 	// order_events
 	INSERT_ORDER_EVENT_QUERY = "INSERT INTO " + TABLE_ORDER_EVENTS_NAME + "(" +
@@ -187,6 +189,7 @@ const (
 		FIELD_CLIENT_ORDER_ID + "," +
 		FIELD_SYMBOL + "," +
 		FIELD_SIDE + "," +
+		FIELD_TYPE + "," +
 		FIELD_PRICE + "," +
 		FIELD_ORIG_QTY + "," +
 		FIELD_EXECUTED_QTY + "," +
@@ -198,7 +201,7 @@ const (
 		FIELD_BALANCE_A + "," +
 		FIELD_BALANCE_B + "," +
 		FIELD_BALANCE_C +
-		") VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+		") VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
 )
 
 var eventQueue = make(chan *Event, EVENT_QUEUE_SIZE)

@@ -9,6 +9,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"strconv"
+	"log"
 )
 
 const EXECUTION_MODE_TEST = true
@@ -19,10 +20,11 @@ var routineCounter int64 = 0
 func SubmitOrders(state *arb.State) {
 	// check if there is no active trades for arb with same coins
 	// TODO decide if we should also check arb states with diff prices/timestamps
-	if _, loaded := executableTriangles.LoadOrStore(state.Triangle.Key, true); loaded{
+	if _, loaded := executableTriangles.LoadOrStore(state.Triangle.Key, true); loaded {
 		return
 	}
 	// async schedule 3 trades
+	log.Println("Submitting orders for " + state.Triangle.Key)
 	now := time.Now()
 	ts := common.UnixMillis(now)
 	atomic.AddInt64(&routineCounter, 3)
@@ -74,6 +76,7 @@ func SubmitOrders(state *arb.State) {
 
 			// get balances and log
 			if err == nil {
+				log.Println("Order " + res.Symbol + " is executed")
 				logging.QueueEvent(&logging.Event{
 					EventType: logging.EventTypeOrderStatusChange,
 					Value: &common.OrderStatusChangeEvent{
@@ -97,6 +100,7 @@ func SubmitOrders(state *arb.State) {
 					},
 				})
 			} else {
+				log.Println("Order " + res.Symbol + " error: " + err.Error())
 				logging.QueueEvent(&logging.Event{
 					EventType: logging.EventTypeOrderStatusChange,
 					Value: &common.OrderStatusChangeEvent{

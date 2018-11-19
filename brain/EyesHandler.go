@@ -252,15 +252,12 @@ func handleMessage(messageSerialized string, eyeId int) {
 	case common.TICKERS_MAP_RESP:
 		// TODO generalize to all
 		if lastReqSentTs.After(message.TraceInfo.BrainReqSentTs) {
-			log.Println("Frame dropped")
+			// Frame dropped
 			return
 		}
-		diff := time.Since(lastUpdTs)
-		log.Println("Upd time: " + diff.String())
-		lastUpdTs = time.Now()
-		lastReqSentTs = message.TraceInfo.BrainReqSentTs
+
+		// TODO proper error handling
 		if err != "" {
-			log.Println("Error from eye " + strconv.Itoa(eyeId) + ": " + err)
 			return
 		}
 

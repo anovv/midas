@@ -112,6 +112,7 @@ func runDetectArbBLOCKING() {
 				}
 
 				// TODO is it correct?
+				// TODO make sure delayed frames do not trigger trade exec
 				if filterArbStateForExecution(arbState){
 					SubmitOrders(arbState)
 				}
@@ -122,7 +123,8 @@ func runDetectArbBLOCKING() {
 
 func filterArbStateForExecution(state *arb.State) bool {
 	// TODO min notional here?
-	return state.ProfitRelative > 0.0001 && state.GetFrameUpdateCount() > 0
+	//return state.ProfitRelative > 0.0001 && state.GetFrameUpdateCount() > 0
+	return true
 }
 
 func findArb(triangle *arb.Triangle) *arb.State {

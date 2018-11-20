@@ -136,12 +136,12 @@ const (
 		FIELD_EXECUTED_QTY + " FLOAT(16, 8)," +
 		FIELD_CUMULATIVE_QUOTE_QTY + " FLOAT(16, 8)," +
 		FIELD_TIME_IN_FORCE + " VARCHAR(64)," +
-		FIELD_FILLS + " VARCHAR(64)," +
-		FIELD_ERROR_MESSAGE + " VARCHAR(64)," +
 		FIELD_TRANSACT_TIME + " TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP," +
 		FIELD_BALANCE_A + " FLOAT(16, 8)," +
 		FIELD_BALANCE_B + " FLOAT(16, 8)," +
 		FIELD_BALANCE_C + " FLOAT(16, 8)," +
+		FIELD_ERROR_MESSAGE + " LONGTEXT," +
+		FIELD_FILLS + " LONGTEXT," +
 		"PRIMARY KEY (id)" +
 		");"
 )
@@ -195,12 +195,12 @@ const (
 		FIELD_EXECUTED_QTY + "," +
 		FIELD_CUMULATIVE_QUOTE_QTY + "," +
 		FIELD_TIME_IN_FORCE + "," +
-		FIELD_FILLS + "," +
-		FIELD_ERROR_MESSAGE + "," +
 		FIELD_TRANSACT_TIME + "," +
 		FIELD_BALANCE_A + "," +
 		FIELD_BALANCE_B + "," +
-		FIELD_BALANCE_C +
+		FIELD_BALANCE_C + "," +
+		FIELD_ERROR_MESSAGE + "," +
+		FIELD_FILLS +
 		") VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
 )
 
@@ -251,12 +251,12 @@ func recordOrderStatusChangedEvent(orderEvent *common.OrderStatusChangeEvent) {
 		orderEvent.ExecutedQty,
 		orderEvent.CumulativeQuoteQty,
 		string(orderEvent.TimeInForce),
-		fillsStr,
-		orderEvent.ErrorMessage,
 		orderEvent.TransactTime.Format(TIMESTAMP_FORMAT),
 		orderEvent.BalanceA,
 		orderEvent.BalanceB,
 		orderEvent.BalanceC,
+		orderEvent.ErrorMessage,
+		fillsStr,
 	)
 	checkErr(err)
 }

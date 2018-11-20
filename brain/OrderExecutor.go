@@ -75,9 +75,11 @@ func SubmitOrders(state *arb.State) {
 
 			// TODO proper wait for balance to be updated
 			// TODO panic if not updated?
-			// TODO discrepancies in balances logging
+			// TODO discrepancies in balances logging among arb currencies
 			// TODO THIS ALSO MAKES US IGNORE POTENTIAL ARB OPPS FOR EXECUTION
-			time.Sleep(time.Duration(50) * time.Millisecond)
+
+			BIG_FUCKING_DELAY_DELET_THIS := time.Duration(100) * time.Millisecond
+			time.Sleep(BIG_FUCKING_DELAY_DELET_THIS)
 
 			// get balances and log
 			if err == nil {

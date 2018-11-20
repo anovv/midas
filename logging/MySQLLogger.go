@@ -136,7 +136,8 @@ const (
 		FIELD_EXECUTED_QTY + " FLOAT(16, 8)," +
 		FIELD_CUMULATIVE_QUOTE_QTY + " FLOAT(16, 8)," +
 		FIELD_TIME_IN_FORCE + " VARCHAR(64)," +
-		FIELD_TRANSACT_TIME + " TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP," +
+		//https://stackoverflow.com/questions/25250846/mysql-incorrect-datetime-value-for-date-older-than-1980
+		FIELD_TRANSACT_TIME + " DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP," +
 		FIELD_BALANCE_A + " FLOAT(16, 8)," +
 		FIELD_BALANCE_B + " FLOAT(16, 8)," +
 		FIELD_BALANCE_C + " FLOAT(16, 8)," +
@@ -275,6 +276,8 @@ func recordArbState(state *arb.State) {
 	if checkErr(err) {
 		return
 	}
+
+
 
 	arbChain := state.Triangle.CoinA.CoinSymbol + "->" +
 		state.Triangle.CoinB.CoinSymbol + "->" +

@@ -14,15 +14,20 @@ import (
 
 const EXECUTION_MODE_TEST = true
 
-var executableTriangles = sync.Map{}
+var executableCoins = sync.Map{}
 var routineCounter int64 = 0
 
 func SubmitOrders(state *arb.State) {
 	// check if there is no active trades for arb with same coins
 	// TODO decide if we should also check arb states with diff prices/timestamps
-	if _, loaded := executableTriangles.LoadOrStore(state.Triangle.Key, true); loaded {
+	// TODO find better caching mechanism
+	_, hasA := executableCoins.LoadOrStore(state.Triangle.CoinA.CoinSymbol, true)
+	_, hasB := executableCoins.LoadOrStore(state.Triangle.CoinB.CoinSymbol, true)
+	_, hasC := executableCoins.LoadOrStore(state.Triangle.CoinC.CoinSymbol, true)
+	if hasA || hasB || hasC {
 		return
 	}
+
 	// async schedule 3 trades
 	log.Println("Submitting orders for " + state.Triangle.Key)
 	now := time.Now()
@@ -131,7 +136,9 @@ func SubmitOrders(state *arb.State) {
 			// remove from active orders
 			atomic.AddInt64(&routineCounter, -1)
 			if routineCounter == 0 {
-				executableTriangles.Delete(state.Triangle.Key)
+				executableCoins.Delete(state.Triangle.CoinA.CoinSymbol)
+				executableCoins.Delete(state.Triangle.CoinB.CoinSymbol)
+				executableCoins.Delete(state.Triangle.CoinC.CoinSymbol)
 			}
 		}()
 	}

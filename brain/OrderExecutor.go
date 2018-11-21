@@ -14,8 +14,39 @@ import (
 
 const EXECUTION_MODE_TEST = true
 
+// TODO implement rate limiter
+//type RateLimiter struct {
+//	numTriggers int
+//	lastStart time.Time
+//	mux sync.Mutex
+//}
+//
+//func (rl *RateLimiter) ShouldReject() bool {
+//	rl.mux.Lock()
+//	defer rl.mux.Unlock()
+//
+//	should := rl.numTriggers > 3 && time.Since(rl.lastStart) < time.Duration(10) * time.Second
+//
+//	if should {
+//		return true
+//	} else {
+//		return false
+//	}
+//}
+//
+//func (rl *RateLimiter) Trigger() {
+//	rl.mux.Lock()
+//	defer rl.mux.Unlock()
+//
+//	if rl.numTriggers == 0 || rl.numTriggers > 3 {
+//		rl.numTriggers = 0
+//		rl.lastStart = time.Now()
+//	}
+//	rl.numTriggers++
+//}
+
 type ExecutableStates struct {
-	coins *sync.Map
+	coins sync.Map
 	mux sync.Mutex
 }
 
@@ -37,7 +68,11 @@ func (ec *ExecutableStates) Delete(state *arb.State) {
 	ec.coins.Delete(state.Triangle.CoinC.CoinSymbol)
 }
 
-var atomicExecutingStates = ExecutableStates{}
+var atomicExecutingStates = &ExecutableStates{
+	coins: sync.Map{},
+	mux: sync.Mutex{},
+}
+
 var routineCounter int64 = 0
 
 func ScheduleOrderExecutionIfNeeded(state *arb.State) {
@@ -53,6 +88,7 @@ func ScheduleOrderExecutionIfNeeded(state *arb.State) {
 
 	// async schedule 3 trades
 	log.Println("Started execution for " + state.Id)
+
 	state.ScheduledForExecution = true
 	now := time.Now()
 	ts := common.UnixMillis(now)

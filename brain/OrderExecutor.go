@@ -6,7 +6,6 @@ import (
 	"time"
 	"midas/logging"
 	"midas/apis/binance"
-	"sync"
 	"sync/atomic"
 	"strconv"
 	"log"

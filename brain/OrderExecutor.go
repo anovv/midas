@@ -28,8 +28,13 @@ func SubmitOrders(state *arb.State) {
 		return
 	}
 
+	if state.ScheduledForExecution {
+		return
+	}
+
 	// async schedule 3 trades
-	log.Println("Submitting orders for " + state.Triangle.Key)
+	log.Println("Started execution for " + state.Triangle.Key)
+	state.ScheduledForExecution = true
 	now := time.Now()
 	ts := common.UnixMillis(now)
 	atomic.AddInt64(&routineCounter, 3)
@@ -138,6 +143,7 @@ func SubmitOrders(state *arb.State) {
 			// remove from active orders
 			atomic.AddInt64(&routineCounter, -1)
 			if routineCounter == 0 {
+				log.Println("Finished execution for " + state.Triangle.Key)
 				executableCoins.Delete(state.Triangle.CoinA.CoinSymbol)
 				executableCoins.Delete(state.Triangle.CoinB.CoinSymbol)
 				executableCoins.Delete(state.Triangle.CoinC.CoinSymbol)

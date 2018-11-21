@@ -109,6 +109,8 @@ func runDetectArbBLOCKING() {
 				if loaded {
 					arbState := res.(*arb.State)
 					arbState.LastUpdateTs = time.Now()
+				} else {
+					log.Println("Detected " + arbStateKey)
 				}
 
 				// TODO is it correct?

@@ -39,11 +39,10 @@ func ScheduleOrderExecutionIfNeeded(state *arb.State) {
 	ts := common.UnixMillis(now)
 	atomic.AddInt64(&routineCounter, 3)
 
-	for _, order := range state.Orders {
-		// TODO time sleep 1 ms?
-		go func() {
+	for _, orderRequest := range state.Orders {
+		go func(request *common.OrderRequest) {
 			// generate order Id
-			clientOrderId := order.Symbol + "_" + strconv.FormatInt(common.UnixMillis(now), 10)
+			clientOrderId := request.Symbol + "_" + strconv.FormatInt(common.UnixMillis(now), 10)
 			// get balances and log
 			logging.QueueEvent(&logging.Event{
 				EventType:logging.EventTypeOrderStatusChange,
@@ -51,11 +50,11 @@ func ScheduleOrderExecutionIfNeeded(state *arb.State) {
 					OrderStatus: common.StatusNew,
 					ArbStateId: state.Id,
 					ClientOrderId: clientOrderId,
-					Symbol: order.Symbol,
-					Side: order.Side,
-					Type: order.Type,
-					Price: order.Price,
-					OrigQty: order.Qty,
+					Symbol: request.Symbol,
+					Side: request.Side,
+					Type: request.Type,
+					Price: request.Price,
+					OrigQty: request.Qty,
 					ExecutedQty: 0.0,
 					CumulativeQuoteQty: 0.0,
 					TimeInForce: common.IOC,
@@ -68,11 +67,11 @@ func ScheduleOrderExecutionIfNeeded(state *arb.State) {
 				},
 			})
 			res, err := binance.NewOrder(
-				order.Symbol,
-				order.Side,
+				request.Symbol,
+				request.Side,
 				common.TypeLimit,
-				order.Qty,
-				order.Price,
+				request.Qty,
+				request.Price,
 				clientOrderId,
 				ts,
 				EXECUTION_MODE_TEST,
@@ -112,7 +111,7 @@ func ScheduleOrderExecutionIfNeeded(state *arb.State) {
 					},
 				})
 			} else {
-				log.Println("Order " + order.Symbol + " error: " + err.Error())
+				log.Println("Order " + request.Symbol + " error: " + err.Error())
 				// TODO report min notional reason
 				logging.QueueEvent(&logging.Event{
 					EventType: logging.EventTypeOrderStatusChange,
@@ -120,11 +119,11 @@ func ScheduleOrderExecutionIfNeeded(state *arb.State) {
 						OrderStatus:        common.StatusError,
 						ArbStateId:         state.Id,
 						ClientOrderId: clientOrderId,
-						Symbol: order.Symbol,
-						Side: order.Side,
-						Type: order.Type,
-						Price: order.Price,
-						OrigQty: order.Qty,
+						Symbol: request.Symbol,
+						Side: request.Side,
+						Type: request.Type,
+						Price: request.Price,
+						OrigQty: request.Qty,
 						ExecutedQty: 0.0,
 						CumulativeQuoteQty: 0.0,
 						TimeInForce: common.IOC,
@@ -138,9 +137,6 @@ func ScheduleOrderExecutionIfNeeded(state *arb.State) {
 				})
 			}
 
-			// Increase ts for next trade
-			atomic.AddInt64(&ts, 1)
-
 			// remove from active orders
 			atomic.AddInt64(&routineCounter, -1)
 			if routineCounter == 0 {
@@ -149,7 +145,11 @@ func ScheduleOrderExecutionIfNeeded(state *arb.State) {
 				executableCoins.Delete(state.Triangle.CoinB.CoinSymbol)
 				executableCoins.Delete(state.Triangle.CoinC.CoinSymbol)
 			}
-		}()
+		}(orderRequest)
+
+		// Increase ts for next trade
+		// TODO time sleep 1 ms for ts to increase properly?
+		ts++
 	}
 }
 

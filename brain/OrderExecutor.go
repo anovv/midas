@@ -45,35 +45,37 @@ const EXECUTION_MODE_TEST = true
 //	rl.numTriggers++
 //}
 
-type ExecutableStates struct {
-	coins sync.Map
-	mux sync.Mutex
-}
-
-func (ec *ExecutableStates) HasOverlapOrStore(state *arb.State) bool {
-	ec.mux.Lock()
-	defer ec.mux.Unlock()
-	_, hasA := ec.coins.LoadOrStore(state.Triangle.CoinA.CoinSymbol, true)
-	_, hasB := ec.coins.LoadOrStore(state.Triangle.CoinB.CoinSymbol, true)
-	_, hasC := ec.coins.LoadOrStore(state.Triangle.CoinC.CoinSymbol, true)
-
-	return hasA || hasB || hasC
-}
-
-func (ec *ExecutableStates) Delete(state *arb.State) {
-	ec.mux.Lock()
-	defer ec.mux.Unlock()
-	ec.coins.Delete(state.Triangle.CoinA.CoinSymbol)
-	ec.coins.Delete(state.Triangle.CoinB.CoinSymbol)
-	ec.coins.Delete(state.Triangle.CoinC.CoinSymbol)
-}
-
-var atomicExecutingStates = &ExecutableStates{
-	coins: sync.Map{},
-	mux: sync.Mutex{},
-}
+//TODO IMPLEMENT THIS
+//type ExecutableStates struct {
+//	coins sync.Map
+//	mux sync.Mutex
+//}
+//
+//func (ec *ExecutableStates) HasOverlapOrStore(state *arb.State) bool {
+//	ec.mux.Lock()
+//	defer ec.mux.Unlock()
+//	_, hasA := ec.coins.LoadOrStore(state.Triangle.CoinA.CoinSymbol, true)
+//	_, hasB := ec.coins.LoadOrStore(state.Triangle.CoinB.CoinSymbol, true)
+//	_, hasC := ec.coins.LoadOrStore(state.Triangle.CoinC.CoinSymbol, true)
+//
+//	return hasA || hasB || hasC
+//}
+//
+//func (ec *ExecutableStates) Delete(state *arb.State) {
+//	ec.mux.Lock()
+//	defer ec.mux.Unlock()
+//	ec.coins.Delete(state.Triangle.CoinA.CoinSymbol)
+//	ec.coins.Delete(state.Triangle.CoinB.CoinSymbol)
+//	ec.coins.Delete(state.Triangle.CoinC.CoinSymbol)
+//}
+//
+//var atomicExecutingStates = &ExecutableStates{
+//	coins: sync.Map{},
+//	mux: sync.Mutex{},
+//}
 
 var routineCounter int64 = 0
+var isBusy = false
 
 func ScheduleOrderExecutionIfNeeded(state *arb.State) {
 	if !shouldExecute(state) {
@@ -82,13 +84,14 @@ func ScheduleOrderExecutionIfNeeded(state *arb.State) {
 
 	// check if there is no active trades for arb with same coins
 	// TODO decide if we should also check arb states with diff prices/timestamps
-	if atomicExecutingStates.HasOverlapOrStore(state) {
+	if isBusy {
+		log.Println(state.Key + " is dropped; Executor is busy")
 		return
 	}
 
 	// async schedule 3 trades
 	log.Println("Started execution for " + state.Id)
-
+	isBusy = true
 	state.ScheduledForExecution = true
 	now := time.Now()
 	ts := common.UnixMillis(now)
@@ -196,7 +199,7 @@ func ScheduleOrderExecutionIfNeeded(state *arb.State) {
 			atomic.AddInt64(&routineCounter, -1)
 			if routineCounter == 0 {
 				log.Println("Finished execution for " + state.Id)
-				atomicExecutingStates.Delete(state)
+				isBusy = false
 			}
 		}(orderRequest)
 

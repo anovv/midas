@@ -84,7 +84,6 @@ func ScheduleOrderExecutionIfNeeded(state *arb.State) {
 	// check if there is no active trades for arb with same coins
 	// TODO decide if we should also check arb states with diff prices/timestamps
 	if isBusy {
-		log.Println(state.Key + " is dropped; Executor is busy")
 		return
 	}
 

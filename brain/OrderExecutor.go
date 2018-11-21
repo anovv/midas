@@ -29,6 +29,7 @@ func ScheduleOrderExecutionIfNeeded(state *arb.State) {
 	_, hasB := executableCoins.LoadOrStore(state.Triangle.CoinB.CoinSymbol, true)
 	_, hasC := executableCoins.LoadOrStore(state.Triangle.CoinC.CoinSymbol, true)
 	if hasA || hasB || hasC {
+		log.Println("Executor is busy")
 		return
 	}
 

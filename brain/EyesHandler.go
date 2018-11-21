@@ -258,6 +258,7 @@ func handleMessage(messageSerialized string, eyeId int) {
 
 		// TODO proper error handling
 		if err != "" {
+			log.Println("Error from eye " + strconv.Itoa(eyeId) + ": " + err)
 			return
 		}
 

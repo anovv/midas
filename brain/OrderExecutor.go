@@ -18,6 +18,10 @@ var executableCoins = sync.Map{}
 var routineCounter int64 = 0
 
 func SubmitOrders(state *arb.State) {
+	if state.ScheduledForExecution {
+		return
+	}
+
 	// check if there is no active trades for arb with same coins
 	// TODO decide if we should also check arb states with diff prices/timestamps
 	// TODO find better caching mechanism
@@ -28,12 +32,8 @@ func SubmitOrders(state *arb.State) {
 		return
 	}
 
-	if state.ScheduledForExecution {
-		return
-	}
-
 	// async schedule 3 trades
-	log.Println("Started execution for " + state.Triangle.Key)
+	log.Println("Started execution for " + state.Id)
 	state.ScheduledForExecution = true
 	now := time.Now()
 	ts := common.UnixMillis(now)
@@ -113,6 +113,7 @@ func SubmitOrders(state *arb.State) {
 				})
 			} else {
 				log.Println("Order " + order.Symbol + " error: " + err.Error())
+				// TODO report min notional reason
 				logging.QueueEvent(&logging.Event{
 					EventType: logging.EventTypeOrderStatusChange,
 					Value: &common.OrderStatusChangeEvent{
@@ -143,7 +144,7 @@ func SubmitOrders(state *arb.State) {
 			// remove from active orders
 			atomic.AddInt64(&routineCounter, -1)
 			if routineCounter == 0 {
-				log.Println("Finished execution for " + state.Triangle.Key)
+				log.Println("Finished execution for " + state.Id)
 				executableCoins.Delete(state.Triangle.CoinA.CoinSymbol)
 				executableCoins.Delete(state.Triangle.CoinB.CoinSymbol)
 				executableCoins.Delete(state.Triangle.CoinC.CoinSymbol)

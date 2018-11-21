@@ -104,13 +104,12 @@ func runDetectArbBLOCKING() {
 			arbState := findArb(triangle)
 			// TODO build queueing system
 			if arbState != nil {
-				arbStateKey := triangle.Key + "_" + common.FloatToString(arbState.ProfitRelative)
-				res, loaded := arbStates.LoadOrStore(arbStateKey, arbState)
+				res, loaded := arbStates.LoadOrStore(arbState.Key, arbState)
 				if loaded {
 					arbState := res.(*arb.State)
 					arbState.LastUpdateTs = time.Now()
 				} else {
-					log.Println("Detected " + arbStateKey)
+					log.Println("Detected " + arbState.Key)
 				}
 
 				// TODO is it correct?
@@ -240,9 +239,11 @@ func findArb(triangle *arb.Triangle) *arb.State {
 	profit := (newQtyA - qtyA)/qtyA
 
 	id := triangle.Key + "_" + common.FloatToString(profit) + "_" + strconv.FormatInt(common.UnixMillis(now), 10)
+	key := triangle.Key + "_" + common.FloatToString(profit)
 
 	arbState := &arb.State{
 		Id: id,
+		Key: key,
 		QtyBefore: minOrderQtyInA,
 		QtyAfter: minOrderQtyInA * (1 + profit),
 		ProfitRelative: profit,

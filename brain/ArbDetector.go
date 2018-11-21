@@ -106,26 +106,18 @@ func runDetectArbBLOCKING() {
 			if arbState != nil {
 				res, loaded := arbStates.LoadOrStore(arbState.Key, arbState)
 				if loaded {
-					arbState := res.(*arb.State)
+					arbState = res.(*arb.State)
 					arbState.LastUpdateTs = time.Now()
 				} else {
 					log.Println("Detected " + arbState.Key)
 				}
 
-				// TODO is it correct?
+				// TODO is it a correct place to call?
 				// TODO make sure delayed frames do not trigger trade exec
-				if filterArbStateForExecution(arbState){
-					SubmitOrders(arbState)
-				}
+				ScheduleOrderExecutionIfNeeded(arbState)
 			}
 		}
 	}
-}
-
-func filterArbStateForExecution(state *arb.State) bool {
-	// TODO min notional here?
-	//return state.ProfitRelative > 0.0001 && state.GetFrameUpdateCount() > 0
-	return true
 }
 
 func findArb(triangle *arb.Triangle) *arb.State {

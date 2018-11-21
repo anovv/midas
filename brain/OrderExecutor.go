@@ -17,8 +17,8 @@ const EXECUTION_MODE_TEST = true
 var executableCoins = sync.Map{}
 var routineCounter int64 = 0
 
-func SubmitOrders(state *arb.State) {
-	if state.ScheduledForExecution {
+func ScheduleOrderExecutionIfNeeded(state *arb.State) {
+	if !shouldExecute(state) {
 		return
 	}
 
@@ -151,4 +151,13 @@ func SubmitOrders(state *arb.State) {
 			}
 		}()
 	}
+}
+
+func shouldExecute(state *arb.State) bool {
+	if state.ScheduledForExecution {
+		return false
+	}
+	// TODO min notional here?
+	//return state.ProfitRelative > 0.0001 && state.GetFrameUpdateCount() > 0
+	return true
 }

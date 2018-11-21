@@ -281,7 +281,7 @@ func NewOrder(
 		true)
 
 	if err != nil {
-		log.Println("MarketOrder error:", err)
+		log.Println("Order error:", err)
 		return nil, err
 	}
 

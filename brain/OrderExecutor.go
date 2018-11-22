@@ -81,16 +81,8 @@ func ScheduleOrderExecutionIfNeeded(state *arb.State) {
 		return
 	}
 
-	// check if there is no active trades for arb with same coins
-	// TODO decide if we should also check arb states with diff prices/timestamps
-	if isBusy {
-		return
-	}
-
 	// async schedule 3 trades
 	log.Println("Started execution for " + state.Id)
-	isBusy = true
-	state.ScheduledForExecution = true
 	now := time.Now()
 	ts := common.UnixMillis(now)
 	atomic.AddInt64(&routineCounter, 3)
@@ -208,10 +200,36 @@ func ScheduleOrderExecutionIfNeeded(state *arb.State) {
 }
 
 func shouldExecute(state *arb.State) bool {
+	// check frame count first
+	if state.GetFrameUpdateCount() < 2 {
+		return false
+	}
+
 	if state.ScheduledForExecution {
 		return false
 	}
-	// TODO min notional here?
-	//return state.ProfitRelative > 0.0001 && state.GetFrameUpdateCount() > 0
+	state.ScheduledForExecution = true
+
+	// TODO check if there is no active trades for arb with same coins
+	// TODO decide if we should also check arb states with diff prices/timestamps
+	if isBusy {
+		log.Println(state.Id + "is dropped. Executor is busy")
+		return false
+	}
+	isBusy = true
+
+	for _, orderRequest := range state.Orders {
+		check := FilterCheck(orderRequest.Symbol, orderRequest.Qty, orderRequest.Price)
+		if check != common.FilterCheckOk {
+			log.Println(state.Id + "is dropped. Did not pass " + string(check))
+			return false
+		}
+	}
+
+	if state.ProfitRelative <= 0.0001 {
+		log.Println(state.Id + "is dropped. Profit is too low")
+		return false
+	}
+
 	return true
 }

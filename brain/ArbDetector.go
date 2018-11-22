@@ -250,6 +250,7 @@ func findArb(triangle *arb.Triangle) *arb.State {
 		OrderQtyAB: orderQtyAB,
 		OrderQtyBC: orderQtyBC,
 		OrderQtyAC: orderQtyAC,
+		ScheduledForExecution: false,
 	}
 
 	return arbState

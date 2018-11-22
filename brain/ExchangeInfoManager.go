@@ -125,9 +125,10 @@ func FilterCheck(symbol string, qty float64, price float64) common.FilterCheck {
 		return common.FilterCheckMaxPrice
 	}
 
-	if price != 0 && math.Mod(price - GetMinPrice(symbol), GetTickSize(symbol)) != 0 {
-		return common.FilterCheckTickSize
-	}
+	// TODO debug tick size
+	//if price != 0 && math.Mod(price - GetMinPrice(symbol), GetTickSize(symbol)) != 0 {
+	//	return common.FilterCheckTickSize
+	//}
 
 	if price != 0 && price * qty < GetMinNotional(symbol) {
 		return common.FilterCheckMinNotional

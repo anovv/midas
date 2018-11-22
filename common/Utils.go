@@ -79,7 +79,7 @@ func GetKeys(m map[interface{}]interface{}) []interface{} {
 
 func FloatToString(input_num float64) string {
 	// to convert a float number to a string
-	return strconv.FormatFloat(input_num, 'f', 6, 64)
+	return strconv.FormatFloat(input_num, 'f', 8, 64)
 }
 
 func TimeFromUnixTimestampFloat(ts float64) time.Time {

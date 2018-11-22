@@ -12,8 +12,8 @@ const (
 	EYE_CONFIG_PATH = "eye_config.json"
 )
 
-var brainConfig *BrainConfig
-var eyeConfig *EyeConfig
+var brainConfig *BrainConfig = nil
+var eyeConfig *EyeConfig = nil
 
 type BrainConfig struct {
 	ARB_REPORT_UPDATE_THRESHOLD_MICROS int `json:"arb_report_update_threshold_micros"`
@@ -32,7 +32,6 @@ type EyeConfig struct {
 
 func ReadBrainConfig() *BrainConfig {
 	if brainConfig != nil {
-		log.Println("BrainConfig read")
 		return brainConfig
 	}
 	jsonConfigFile, err := os.Open(BRAIN_CONFIG_PATH)
@@ -41,20 +40,22 @@ func ReadBrainConfig() *BrainConfig {
 		panic("Unable to open brain config. Make sure there is brain_config.json next to brain_exec binary: " + err.Error())
 	}
 
-	byteValue, _ := ioutil.ReadAll(jsonConfigFile)
-
-	err = json.Unmarshal(byteValue, *brainConfig)
-
+	byteValue, err := ioutil.ReadAll(jsonConfigFile)
 	if err != nil {
 		panic("Unable to parse brain config: " + err.Error())
 	}
+
+	err = json.Unmarshal(byteValue, &brainConfig)
+	if err != nil {
+		panic("Unable to parse brain config: " + err.Error())
+	}
+	log.Println("BrainConfig created")
 
 	return brainConfig
 }
 
 func ReadEyeConfig() *EyeConfig {
 	if eyeConfig != nil {
-		log.Println("EyeConfig read")
 		return eyeConfig
 	}
 	jsonConfigFile, err := os.Open(EYE_CONFIG_PATH)
@@ -64,13 +65,16 @@ func ReadEyeConfig() *EyeConfig {
 
 	defer jsonConfigFile.Close()
 
-	byteValue, _ := ioutil.ReadAll(jsonConfigFile)
-
-	err = json.Unmarshal(byteValue, *eyeConfig)
-
+	byteValue, err := ioutil.ReadAll(jsonConfigFile)
 	if err != nil {
 		panic("Unable to parse eye config: " + err.Error())
 	}
+
+	err = json.Unmarshal(byteValue, &eyeConfig)
+	if err != nil {
+		panic("Unable to parse eye config: " + err.Error())
+	}
+	log.Println("EyeConfig created")
 
 	return eyeConfig
 }

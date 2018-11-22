@@ -213,7 +213,7 @@ func shouldExecute(state *arb.State) bool {
 	// TODO check if there is no active trades for arb with same coins
 	// TODO decide if we should also check arb states with diff prices/timestamps
 	if isBusy {
-		log.Println(state.Id + "is dropped. Executor is busy")
+		log.Println(state.Id + " is dropped. Executor is busy")
 		return false
 	}
 	isBusy = true
@@ -221,13 +221,15 @@ func shouldExecute(state *arb.State) bool {
 	for _, orderRequest := range state.Orders {
 		check := FilterCheck(orderRequest.Symbol, orderRequest.Qty, orderRequest.Price)
 		if check != common.FilterCheckOk {
-			log.Println(state.Id + "is dropped. Did not pass " + string(check))
+			log.Println(state.Id + " is dropped. Did not pass " + string(check) + " for pair " + orderRequest.Symbol)
+			isBusy = false
 			return false
 		}
 	}
 
 	if state.ProfitRelative <= 0.0001 {
-		log.Println(state.Id + "is dropped. Profit is too low")
+		log.Println(state.Id + " is dropped. Profit is too low")
+		isBusy = false
 		return false
 	}
 

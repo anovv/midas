@@ -221,7 +221,7 @@ func shouldExecute(state *arb.State) bool {
 	for _, orderRequest := range state.Orders {
 		check := FilterCheck(orderRequest.Symbol, orderRequest.Qty, orderRequest.Price)
 		if check != common.FilterCheckOk {
-			log.Println(state.Id + " is dropped. Did not pass " + string(check) + " for pair " + orderRequest.Symbol)
+			log.Println(state.Id + " is dropped. Did not pass " + string(check) + " for pair " + orderRequest.Symbol + " Price: " + common.FloatToString(orderRequest.Price) + " Qty: " + common.FloatToString(orderRequest.Qty) + " | Tick size: " + common.FloatToString(GetTickSize(orderRequest.Symbol)) + " | Min notional: " + common.FloatToString(GetMinNotional(orderRequest.Symbol)) + " | Step size: " + common.FloatToString(GetStepSize(orderRequest.Symbol)))
 			isBusy = false
 			return false
 		}

@@ -11,7 +11,7 @@ import (
 	"log"
 )
 
-const EXECUTION_MODE_TEST = true
+const EXECUTION_MODE_TEST = false
 
 // TODO implement rate limiter
 //type RateLimiter struct {

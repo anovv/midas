@@ -202,9 +202,9 @@ func ScheduleOrderExecutionIfNeeded(state *arb.State) {
 
 func shouldExecute(state *arb.State) bool {
 	// check frame count first
-	if state.GetFrameUpdateCount() < 2 {
-		return false
-	}
+	//if state.GetFrameUpdateCount() < 2 {
+	//	return false
+	//}
 
 	// TODO check if there is no active trades for arb with same coins
 	// TODO decide if we should also check arb states with diff prices/timestamps

@@ -181,6 +181,8 @@ func findArb(triangle *arb.Triangle) *arb.State {
 	minOrderQtyInA := math.Min(math.Min(orderQtyABinA, orderQtyAСinA), orderQtyBCinA)
 	minOrderQtyInA = math.Min(minBalanceInA, minOrderQtyInA)
 
+	usesAllBalance := minOrderQtyInA == minBalanceInA
+
 	var tradeQtyAB float64
 	var tradeQtyBC float64
 	var tradeQtyAC float64
@@ -251,6 +253,7 @@ func findArb(triangle *arb.Triangle) *arb.State {
 		OrderQtyBC: orderQtyBC,
 		OrderQtyAC: orderQtyAC,
 		ScheduledForExecution: false,
+		UsesAllBalance: usesAllBalance,
 	}
 
 	return arbState

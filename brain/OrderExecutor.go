@@ -205,11 +205,6 @@ func shouldExecute(state *arb.State) bool {
 		return false
 	}
 
-	if state.ScheduledForExecution {
-		return false
-	}
-	state.ScheduledForExecution = true
-
 	// TODO check if there is no active trades for arb with same coins
 	// TODO decide if we should also check arb states with diff prices/timestamps
 	if isBusy {
@@ -218,10 +213,21 @@ func shouldExecute(state *arb.State) bool {
 	}
 	isBusy = true
 
+	if state.ScheduledForExecution {
+		return false
+	}
+	state.ScheduledForExecution = true
+
 	for _, orderRequest := range state.Orders {
 		check := FilterCheck(orderRequest.Symbol, orderRequest.Qty, orderRequest.Price)
 		if check != common.FilterCheckOk {
-			log.Println(state.Id + " is dropped. Did not pass " + string(check) + " for pair " + orderRequest.Symbol + " Price: " + common.FloatToString(orderRequest.Price) + " Qty: " + common.FloatToString(orderRequest.Qty) + " | Tick size: " + common.FloatToString(GetTickSize(orderRequest.Symbol)) + " | Min price: " + common.FloatToString(GetMinPrice(orderRequest.Symbol)) + " | Min notional: " + common.FloatToString(GetMinNotional(orderRequest.Symbol)) + " | Step size: " + common.FloatToString(GetStepSize(orderRequest.Symbol)))
+
+			msg := string(check)
+			if check == common.FilterCheckMinNotional && state.UsesAllBalance {
+				msg += "_ALL_BALANCE"
+			}
+
+			log.Println(state.Id + " is dropped. Did not pass " + msg + " for pair " + orderRequest.Symbol + " Price: " + common.FloatToString(orderRequest.Price) + " Qty: " + common.FloatToString(orderRequest.Qty) + " | Tick size: " + common.FloatToString(GetTickSize(orderRequest.Symbol)) + " | Min price: " + common.FloatToString(GetMinPrice(orderRequest.Symbol)) + " | Min notional: " + common.FloatToString(GetMinNotional(orderRequest.Symbol)) + " | Step size: " + common.FloatToString(GetStepSize(orderRequest.Symbol)))
 			isBusy = false
 			return false
 		}

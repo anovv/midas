@@ -24,6 +24,7 @@ type State struct {
 	OrderQtyBC float64
 	OrderQtyAC float64
 	ScheduledForExecution bool
+	UsesAllBalance bool
 }
 
 func (s *State) GetFrameUpdateCount() int {

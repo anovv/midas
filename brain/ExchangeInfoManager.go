@@ -142,9 +142,10 @@ func FilterCheck(symbol string, qty float64, price float64) common.FilterCheck {
 		return common.FilterCheckMaxQty
 	}
 
-	if math.Mod(qty - GetMinQty(symbol), GetStepSize(symbol)) != 0 {
-		return common.FilterCheckStepSize
-	}
+	// TODO debug step size
+	//if math.Mod(qty - GetMinQty(symbol), GetStepSize(symbol)) != 0 {
+	//	return common.FilterCheckStepSize
+	//}
 
 	return common.FilterCheckOk
 }

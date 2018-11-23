@@ -82,6 +82,7 @@ func ScheduleOrderExecutionIfNeeded(state *arb.State) {
 	}
 
 	// async schedule 3 trades
+	isBusy = true
 	log.Println("Started execution for " + state.Id)
 	now := time.Now()
 	ts := common.UnixMillis(now)
@@ -210,7 +211,6 @@ func shouldExecute(state *arb.State) bool {
 	if isBusy {
 		return false
 	}
-	isBusy = true
 
 	if state.ScheduledForExecution {
 		return false
@@ -227,14 +227,12 @@ func shouldExecute(state *arb.State) bool {
 			}
 
 			log.Println(state.Id + " is dropped. Did not pass " + msg + " for pair " + orderRequest.Symbol + " Price: " + common.FloatToString(orderRequest.Price) + " Qty: " + common.FloatToString(orderRequest.Qty) + " | Tick size: " + common.FloatToString(GetTickSize(orderRequest.Symbol)) + " | Min price: " + common.FloatToString(GetMinPrice(orderRequest.Symbol)) + " | Min notional: " + common.FloatToString(GetMinNotional(orderRequest.Symbol)) + " | Step size: " + common.FloatToString(GetStepSize(orderRequest.Symbol)))
-			isBusy = false
 			return false
 		}
 	}
 
 	if state.ProfitRelative <= 0.0001 {
 		log.Println(state.Id + " is dropped. Profit is too low")
-		isBusy = false
 		return false
 	}
 
